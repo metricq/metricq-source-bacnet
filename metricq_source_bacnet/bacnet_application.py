@@ -20,10 +20,14 @@
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (APDU, ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -67,13 +71,6 @@ class BacNetMetricQReader(BIPSimpleApplication):
     def stop(self):
         bacnet_stop()
         self._thread.join()
-
-    def bacnet_request(self, request: APDU):
-        iocb = IOCB(request)
-
-        iocb.add_callback(self._iocb_callback)
-
-        deferred(self.request_io, iocb)
 
     # TODO maybe at more checks from _iocb_callback
     def _unpack_iocb(
@@ -275,3 +272,26 @@ class BacNetMetricQReader(BIPSimpleApplication):
                 self._object_info_cache[
                     (device_address_str, object_type, object_instance)
                 ] = result_values[object_identifier]
+
+    def request_values(
+        self, device_address_str: str, objects: Sequence[Tuple[Union[int, str], int]]
+    ):
+        device_address = Address(device_address_str)
+
+        prop_reference_list = [PropertyReference(propertyIdentifier="presentValue")]
+
+        read_access_specs = [
+            ReadAccessSpecification(
+                objectIdentifier=ObjectIdentifier(object_identifier),
+                listOfPropertyReferences=prop_reference_list,
+            )
+            for object_identifier in objects
+        ]
+
+        request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
+        request.pduDestination = device_address
+
+        iocb = IOCB(request)
+        iocb.add_callback(self._iocb_callback)
+
+        deferred(self.request_io, iocb)
