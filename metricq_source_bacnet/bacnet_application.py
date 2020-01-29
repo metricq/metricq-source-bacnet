@@ -196,3 +196,82 @@ class BacNetMetricQReader(BIPSimpleApplication):
         if iocb.ioError:
             # TODO error logging
             print(str(iocb.ioError))
+
+    def request_device_properties(self, device_address_str: str, properties=None):
+        if properties is None:
+            properties = ["objectName", "description", "units"]
+
+        device_address = Address(device_address_str)
+        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
+
+        if not device_info:
+            # TODO make who is request to fill device cache
+            pass
+
+        prop_reference_list = [
+            PropertyReference(propertyIdentifier=property) for property in properties
+        ]
+
+        device_object_identifier = ("device", device_info.deviceIdentifier)
+
+        read_access_spec = ReadAccessSpecification(
+            objectIdentifier=device_object_identifier,
+            listOfPropertyReferences=prop_reference_list,
+        )
+
+        request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=[read_access_spec])
+        request.pduDestination = device_address
+
+        iocb = IOCB(request)
+        deferred(self.request_io, iocb)
+        iocb.wait()
+
+        if iocb.ioResponse:
+            result_values = self._unpack_iocb(iocb)
+            if device_object_identifier in result_values:
+                self._object_info_cache[
+                    (device_address_str, "device", device_info.deviceIdentifier)
+                ] = result_values[device_object_identifier]
+
+    def request_object_properties(
+        self,
+        device_address_str: str,
+        objects: Sequence[Tuple[Union[int, str], int]],
+        properties=None,
+    ):
+        if properties is None:
+            properties = ["objectName", "description", "units"]
+
+        device_address = Address(device_address_str)
+        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
+
+        if not device_info:
+            # TODO make who is request to fill device cache
+            pass
+
+        prop_reference_list = [
+            PropertyReference(propertyIdentifier=property) for property in properties
+        ]
+
+        read_access_specs = [
+            ReadAccessSpecification(
+                objectIdentifier=ObjectIdentifier(object_identifier),
+                listOfPropertyReferences=prop_reference_list,
+            )
+            for object_identifier in objects
+        ]
+
+        request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
+        request.pduDestination = device_address
+
+        iocb = IOCB(request)
+        deferred(self.request_io, iocb)
+        iocb.wait()
+
+        if iocb.ioResponse:
+            result_values = self._unpack_iocb(iocb)
+            for object_identifier in result_values:
+                object_type, object_instance = object_identifier
+                self._object_info_cache[
+                    (device_address_str, object_type, object_instance)
+                ] = result_values[object_identifier]
