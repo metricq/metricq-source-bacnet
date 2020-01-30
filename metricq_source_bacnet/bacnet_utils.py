@@ -18,7 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 
-from bacpypes.app import DeviceInfoCache
+from bacpypes.app import DeviceInfo, DeviceInfoCache
+from metricq import get_logger
+
+logger = get_logger(__name__)
 
 
 class BetterDeviceInfoCache(DeviceInfoCache):
@@ -38,3 +41,10 @@ class BetterDeviceInfoCache(DeviceInfoCache):
         else:
             if not self.has_device_info(device_info.address):
                 self.cache[device_info.address] = device_info
+
+    def acquire(self, key):
+        if isinstance(key, DeviceInfo):
+            logger.debug("Got wrong type of key, fixing this...")
+            key = key.deviceIdentifier
+
+        return super(BetterDeviceInfoCache, self).acquire(key)
