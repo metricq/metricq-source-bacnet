@@ -46,7 +46,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
         self,
         reader_address,
         reader_object_identifier,
-        put_result_in_source_queue_fn: Callable[[str, Dict], None],
+        put_result_in_source_queue_fn: Callable[[str, str, Dict], None],
     ):
         self._thread = Thread(target=bacnet_run)
         # MetricQ Bacnet Run Thread
@@ -187,7 +187,9 @@ class BacNetMetricQReader(BIPSimpleApplication):
                             (object_type, object_instance)
                         ]
 
-                self._put_result_in_source_queue(device_name, result_values)
+                self._put_result_in_source_queue(
+                    device_name, device_addr, result_values
+                )
 
         # do something for error/reject/abort
         if iocb.ioError:
