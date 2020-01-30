@@ -171,10 +171,12 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
             apdu: ReadPropertyMultipleACK
 
-            device_addr = str(apdu.pduSource)  # address of the device
-            device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_addr)
+            device_addr_str = str(apdu.pduSource)  # address of the device
+            device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
+                apdu.pduSource
+            )
             device_name: Optional[str] = self._object_info_cache[
-                (device_addr, "device", device_info.deviceIdentifier)
+                (device_addr_str, "device", device_info.deviceIdentifier)
             ].get("objectName")
 
             if device_name:
@@ -183,7 +185,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
                 result_values = {}
                 for object_type, object_instance in result_values_by_id:
                     object_name: Optional[str] = self._object_info_cache[
-                        (device_addr, object_type, object_instance)
+                        (device_addr_str, object_type, object_instance)
                     ].get("objectName")
 
                     if object_name:
@@ -192,7 +194,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
                         ]
 
                 self._put_result_in_source_queue(
-                    device_name, device_addr, result_values
+                    device_name, device_addr_str, result_values
                 )
 
         # do something for error/reject/abort
