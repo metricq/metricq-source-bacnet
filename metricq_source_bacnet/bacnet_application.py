@@ -210,7 +210,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
     def request_device_properties(self, device_address_str: str, properties=None):
         if properties is None:
-            properties = ["objectName", "description", "units"]
+            properties = ["objectName", "description"]
 
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
