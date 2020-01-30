@@ -20,14 +20,10 @@
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -60,7 +56,9 @@ class BacNetMetricQReader(BIPSimpleApplication):
         self._object_info_cache: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
 
         local_device_object = LocalDeviceObject(
-            objectName="MetricQReader", objectIdentifier=reader_object_identifier
+            objectName="MetricQReader",
+            objectIdentifier=reader_object_identifier,
+            vendorIdentifier=15,
         )
 
         BIPSimpleApplication.__init__(self, local_device_object, reader_address)
@@ -297,3 +295,24 @@ class BacNetMetricQReader(BIPSimpleApplication):
         iocb.add_callback(self._iocb_callback)
 
         deferred(self.request_io, iocb)
+
+    def get_device_info(self, device_address_str: str):
+        device_address = Address(device_address_str)
+        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
+        if device_info:
+            return self.get_object_info(
+                device_address_str, "device", device_info.deviceIdentifier
+            )
+
+        # TODO maybe fill cache here
+
+        return None
+
+    def get_object_info(self, device_address_str: str, object_type, object_instance):
+        cache_key = (device_address_str, object_type, object_instance)
+        if cache_key in self._object_info_cache:
+            return self._object_info_cache[cache_key]
+
+        # TODO maybe fill cache here
+
+        return None
