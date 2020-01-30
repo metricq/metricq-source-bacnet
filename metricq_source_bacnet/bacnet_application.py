@@ -193,6 +193,15 @@ class BacNetMetricQReader(BIPSimpleApplication):
         if iocb.ioError:
             logger.error("IOCB returned with error: {}", iocb.ioError)
 
+    def who_is(self, low_limit=None, high_limit=None, address=None):
+        super(BacNetMetricQReader, self).who_is(low_limit, high_limit, address)
+        # TODO maybe save request for incoming I-Am
+
+    def do_IAmRequest(self, apdu):
+        super(BacNetMetricQReader, self).do_IAmRequest(apdu)
+        logger.debug("New device info {}", apdu.pduSource)
+        self.deviceInfoCache.iam_device_info(apdu)
+
     def request_device_properties(self, device_address_str: str, properties=None):
         if properties is None:
             properties = ["objectName", "description", "units"]
