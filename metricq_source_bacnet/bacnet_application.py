@@ -36,6 +36,7 @@ from bacpypes.object import get_datatype
 from bacpypes.pdu import Address
 from bacpypes.primitivedata import ObjectIdentifier, Unsigned
 from metricq import get_logger
+from metricq_source_bacnet.bacnet_utils import BetterDeviceInfoCache
 
 logger = get_logger(__name__)
 
@@ -64,7 +65,12 @@ class BacNetMetricQReader(BIPSimpleApplication):
             vendorIdentifier=15,
         )
 
-        BIPSimpleApplication.__init__(self, local_device_object, reader_address)
+        BIPSimpleApplication.__init__(
+            self,
+            local_device_object,
+            reader_address,
+            deviceInfoCache=BetterDeviceInfoCache(),
+        )
 
     def start(self):
         self._thread.start()
