@@ -35,6 +35,9 @@ from bacpypes.local.device import LocalDeviceObject
 from bacpypes.object import get_datatype
 from bacpypes.pdu import Address
 from bacpypes.primitivedata import ObjectIdentifier, Unsigned
+from metricq import get_logger
+
+logger = get_logger(__name__)
 
 
 class BacNetMetricQReader(BIPSimpleApplication):
@@ -108,13 +111,12 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
                 # check for an error
                 if read_result.propertyAccessError is not None:
-                    # TODO error logging
                     if property_array_index is not None:
                         property_label += "[" + str(property_array_index) + "]"
-                    print(
-                        "{} ! {}".format(
-                            property_label, read_result.propertyAccessError
-                        )
+                    logger.error(
+                        "Error reading property {} : {}",
+                        property_label,
+                        read_result.propertyAccessError,
                     )
 
                 else:
@@ -191,8 +193,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
         # do something for error/reject/abort
         if iocb.ioError:
-            # TODO error logging
-            print(str(iocb.ioError))
+            logger.error("IOCB returned with error: {}", iocb.ioError)
 
     def request_device_properties(self, device_address_str: str, properties=None):
         if properties is None:
@@ -203,7 +204,10 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
         if not device_info:
             # TODO make who is request to fill device cache
-            pass
+            logger.error(
+                "Device with address {} is not in device cache!", device_address_str
+            )
+            return
 
         prop_reference_list = [
             PropertyReference(propertyIdentifier=property) for property in properties
@@ -229,6 +233,10 @@ class BacNetMetricQReader(BIPSimpleApplication):
                 self._object_info_cache[
                     (device_address_str, "device", device_info.deviceIdentifier)
                 ] = result_values[device_object_identifier]
+
+        # do something for error/reject/abort
+        if iocb.ioError:
+            logger.error("IOCB returned with error: {}", iocb.ioError)
 
     def request_object_properties(
         self,
@@ -272,6 +280,10 @@ class BacNetMetricQReader(BIPSimpleApplication):
                 self._object_info_cache[
                     (device_address_str, object_type, object_instance)
                 ] = result_values[object_identifier]
+
+        # do something for error/reject/abort
+        if iocb.ioError:
+            logger.error("IOCB returned with error: {}", iocb.ioError)
 
     def request_values(
         self, device_address_str: str, objects: Sequence[Tuple[Union[int, str], int]]

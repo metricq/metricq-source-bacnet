@@ -22,8 +22,10 @@ from asyncio import Future
 from string import Template
 from typing import Dict, List, Optional, Tuple, Union
 
-from metricq import Source, Timedelta, Timestamp, rpc_handler
+from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet_application import BacNetMetricQReader
+
+logger = get_logger(__name__)
 
 
 def unpack_range(range_str: str) -> List[int]:
@@ -114,7 +116,7 @@ class BacnetSource(Source):
             self._result_queue.task_done()
 
     async def stop(self, exception: Optional[Exception]):
-        # TODO logger.debug("stop()")
+        logger.debug("stop()")
         self._bacnet_reader.stop()
 
         for worker_stop_future in self._worker_stop_futures:
@@ -134,9 +136,10 @@ class BacnetSource(Source):
             ),
             loop=self.event_loop,
         )
-        if fut.exception():
-            # TODO error logging
-            pass
+        try:
+            fut.result()
+        except Exception:
+            logger.exception("Can't put BACnet result in queue!")
 
     async def _worker_task(self, object_group, worker_task_stop_future):
         interval = object_group["interval"]
@@ -152,6 +155,12 @@ class BacnetSource(Source):
         self._bacnet_reader.request_object_properties(device_address_str, objects)
 
         device_info = self._bacnet_reader.get_device_info(device_address_str)
+        if device_info is None:
+            logger.error(
+                "Missing device info for {}. Stopping worker task!", device_address_str
+            )
+            return
+
         metrics = {}
 
         for object_instance in object_group["object_instances"]:
@@ -159,6 +168,15 @@ class BacnetSource(Source):
             object_info = self._bacnet_reader.get_object_info(
                 device_address_str, object_type, object_instance
             )
+            if object_info is None:
+                logger.error(
+                    "No object info for ({}, {}) of {} available!",
+                    object_type,
+                    object_instance,
+                    device_address_str,
+                )
+                continue
+
             metric_id = (
                 Template(object_group["metric_id"])
                 .safe_substitute(
@@ -200,7 +218,7 @@ class BacnetSource(Source):
                 deadline += Timedelta.from_s(interval)
                 now = Timestamp.now()
                 while now >= deadline:
-                    # TODO logger.warn("Missed deadline {}, it is now {}", deadline, now)
+                    logger.warn("Missed deadline {}, it is now {}", deadline, now)
                     deadline += Timedelta.from_s(interval)
 
                 timeout = (deadline - now).s
@@ -208,7 +226,7 @@ class BacnetSource(Source):
                     asyncio.shield(worker_task_stop_future), timeout=timeout
                 )
                 worker_task_stop_future.result()
-                # TODO logger.info("stopping IntervalSource task")
+                logger.info("stopping BACnetSource worker task")
                 break
             except asyncio.TimeoutError:
                 # This is the normal case, just continue with the loop
