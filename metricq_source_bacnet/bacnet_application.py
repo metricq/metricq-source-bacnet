@@ -20,15 +20,10 @@
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-    WhoIsRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest, WhoIsRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -206,29 +201,17 @@ class BacNetMetricQReader(BIPSimpleApplication):
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
         if not device_info:
-            request = WhoIsRequest()
-            request.pduDestination = device_address
 
-            # make an IOCB
-            iocb = IOCB(request)
-            deferred(self.request_io, iocb)
+            deferred(self.who_is, address=device_address)
 
-            # TODO fix thread/task blocking
-            iocb.wait()
-
-            # do something for error/reject/abort
-            if iocb.ioError:
-                logger.error("IOCB returned with error: {}", iocb.ioError)
-            else:
-                device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
-                    device_address
+            device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
+                device_address
+            )
+            if not device_info:
+                logger.error(
+                    "Device with address {} is not in device cache!", device_address_str
                 )
-                if not device_info:
-                    logger.error(
-                        "Device with address {} is not in device cache!",
-                        device_address_str,
-                    )
-                    return
+                return
 
         prop_reference_list = [
             PropertyReference(propertyIdentifier=property) for property in properties
