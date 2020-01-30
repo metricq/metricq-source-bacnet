@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
                            ReadAccessResultElementChoice,
                            ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+                           ReadPropertyMultipleRequest, WhoIsRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -203,11 +203,29 @@ class BacNetMetricQReader(BIPSimpleApplication):
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
         if not device_info:
-            # TODO make who is request to fill device cache
-            logger.error(
-                "Device with address {} is not in device cache!", device_address_str
-            )
-            return
+            request = WhoIsRequest()
+            request.pduDestination = device_address
+
+            # make an IOCB
+            iocb = IOCB(request)
+            deferred(self.request_io, iocb)
+
+            # TODO fix thread/task blocking
+            iocb.wait()
+
+            # do something for error/reject/abort
+            if iocb.ioError:
+                logger.error("IOCB returned with error: {}", iocb.ioError)
+            else:
+                device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
+                    device_address
+                )
+                if not device_info:
+                    logger.error(
+                        "Device with address {} is not in device cache!",
+                        device_address_str,
+                    )
+                    return
 
         prop_reference_list = [
             PropertyReference(propertyIdentifier=property) for property in properties
@@ -225,6 +243,8 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
         iocb = IOCB(request)
         deferred(self.request_io, iocb)
+
+        # TODO fix thread/task blocking
         iocb.wait()
 
         if iocb.ioResponse:
@@ -271,6 +291,8 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
         iocb = IOCB(request)
         deferred(self.request_io, iocb)
+
+        # TODO fix thread/task blocking
         iocb.wait()
 
         if iocb.ioResponse:
