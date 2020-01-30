@@ -110,8 +110,11 @@ class BacnetSource(Source):
                     .replace("'", ".")
                     .replace(" ", "")
                 )
-                if isinstance(object_result, (int, float)):
-                    await self.send(metric_id, timestamp, object_result)
+                if "presentValue" in object_result and (
+                    object_result["presentValue"],
+                    (int, float),
+                ):
+                    await self.send(metric_id, timestamp, object_result["presentValue"])
 
             self._result_queue.task_done()
 
