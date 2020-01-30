@@ -20,10 +20,15 @@
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest, WhoIsRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+    WhoIsRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -90,9 +95,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
         result: ReadAccessResult
         for result in apdu.listOfReadAccessResults:
-            object_identifier: Tuple[
-                Union[str, int], int
-            ] = result.objectIdentifier.value
+            object_identifier: Tuple[Union[str, int], int] = result.objectIdentifier
             object_type, object_instance = object_identifier
 
             results_for_object = result_values.get(object_identifier, {})
