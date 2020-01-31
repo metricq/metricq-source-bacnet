@@ -262,7 +262,6 @@ class BacNetMetricQReader(BIPSimpleApplication):
         iocb = IOCB(request)
         deferred(self.request_io, iocb)
 
-        # TODO fix thread/task blocking
         iocb.wait()
 
         if iocb.ioResponse:
@@ -316,7 +315,6 @@ class BacNetMetricQReader(BIPSimpleApplication):
         iocb = IOCB(request)
         deferred(self.request_io, iocb)
 
-        # TODO fix thread/task blocking
         iocb.wait()
 
         if iocb.ioResponse:
