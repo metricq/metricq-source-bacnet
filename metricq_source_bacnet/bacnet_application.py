@@ -216,7 +216,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
         super(BacNetMetricQReader, self).do_IAmRequest(apdu)
 
         if threading.current_thread() != self._thread:
-            logger.debug(
+            logger.warning(
                 "IAm-Request handler not called from BACpypes thread! {}",
                 threading.current_thread(),
             )
@@ -225,6 +225,11 @@ class BacNetMetricQReader(BIPSimpleApplication):
         self.deviceInfoCache.iam_device_info(apdu)
 
     def request_device_properties(self, device_address_str: str, properties=None):
+        if threading.current_thread() == threading.main_thread():
+            logger.error(
+                "request_device_properties called from main thread! Run it from an executor!"
+            )
+
         if properties is None:
             properties = ["objectName", "description"]
 
@@ -281,6 +286,11 @@ class BacNetMetricQReader(BIPSimpleApplication):
         objects: Sequence[Tuple[Union[int, str], int]],
         properties=None,
     ):
+        if threading.current_thread() == threading.main_thread():
+            logger.error(
+                "request_object_properties called from main thread! Run it from an executor!"
+            )
+
         if properties is None:
             properties = ["objectName", "description", "units"]
 
