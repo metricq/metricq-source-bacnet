@@ -71,7 +71,7 @@ class BacnetSource(Source):
         self._device_config: Dict[str, Dict] = {}
         for device_address_str, device_config in config["devices"].items():
             object_group_device_config = {
-                "metric_id": device_config.get("metricId"),
+                "metric_id": device_config["metricId"],
                 "description": device_config.get("description", "$objectDescription"),
             }
 
