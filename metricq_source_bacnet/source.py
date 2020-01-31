@@ -44,12 +44,13 @@ def unpack_range(range_str: str) -> List[int]:
 
 
 class BacnetSource(Source):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, disk_cache_filename=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._bacnet_reader: Optional[BacNetMetricQReader] = None
         self._result_queue = asyncio.Queue()
         self._main_task_stop_future = None
         self._worker_stop_futures: List[Future] = []
+        self.disk_cache_filename = disk_cache_filename
 
     @rpc_handler("config")
     async def _on_config(self, **config):
@@ -65,6 +66,7 @@ class BacnetSource(Source):
             reader_address=config["bacnetReaderAddress"],
             reader_object_identifier=config["bacnetReaderObjectIdentifier"],
             put_result_in_source_queue_fn=self._bacnet_reader_put_result_in_source_queue,
+            disk_cache_filename=self.disk_cache_filename,
         )
         self._bacnet_reader.start()
 

@@ -41,8 +41,9 @@ logger.handlers[0].formatter = logging.Formatter(
 @click.option("--token", default="source-bacnet")
 @click.option("--monitor/--no-monitor", default=False)
 @click.option("--log-to-journal/--no-log-to-journal", default=False)
+@click.option("--disk-cache-filename", default="metricq-source-bacnet-disk-cache.json")
 @click_log.simple_verbosity_option(logger)
-def source_cmd(server, token, monitor, log_to_journal):
+def source_cmd(server, token, monitor, log_to_journal, disk_cache_filename):
     if log_to_journal:
         try:
             from systemd import journal
@@ -51,7 +52,9 @@ def source_cmd(server, token, monitor, log_to_journal):
         except ImportError:
             logger.error("Can't enable journal logger, systemd package not found!")
 
-    src = BacnetSource(token=token, management_url=server)
+    src = BacnetSource(
+        token=token, management_url=server, disk_cache_filename=disk_cache_filename
+    )
     if monitor:
         with aiomonitor.start_monitor(src.event_loop, locals={"source": src}):
             src.run()

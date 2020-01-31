@@ -17,15 +17,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
+import json
 import threading
 import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -49,6 +54,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
         reader_address,
         reader_object_identifier,
         put_result_in_source_queue_fn: Callable[[str, str, Dict], None],
+        disk_cache_filename=None,
     ):
         self._thread = Thread(target=bacnet_run)
         # MetricQ Bacnet Run Thread
@@ -59,9 +65,19 @@ class BacNetMetricQReader(BIPSimpleApplication):
         #  cache for object properties
         #  key is (device address, object type, object instance)
         #  value is dict of property name and value
+        self._disk_cache_filename = disk_cache_filename
         self._object_info_cache_lock = RLock()
         with self._object_info_cache_lock:
             self._object_info_cache: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+            if disk_cache_filename:
+                try:
+                    with open(disk_cache_filename) as disk_cache_file:
+                        self._object_info_cache = json.load(disk_cache_file)
+                except OSError:
+                    logger.warning(
+                        "Can't read disk cache file. Starting with empty cache!",
+                        exc_info=True,
+                    )
 
         local_device_object = LocalDeviceObject(
             objectName="MetricQReader",
@@ -81,6 +97,14 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
     def stop(self):
         bacnet_stop()
+
+        if self._disk_cache_filename:
+            try:
+                with open(self._disk_cache_filename, "w") as disk_cache_file:
+                    json.dump(self._object_info_cache, disk_cache_file)
+            except OSError:
+                logger.warning("Can't write disk cache file!", exc_info=True)
+
         self._thread.join()
 
     # TODO maybe at more checks from _iocb_callback
