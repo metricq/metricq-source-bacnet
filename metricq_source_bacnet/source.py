@@ -91,6 +91,10 @@ class BacnetSource(Source):
                 object_group_config.update(object_group_device_config)
                 self._object_groups.append(object_group_config)
 
+        self._object_name_vendor_specific_mapping = config.get(
+            "vendorSpecificMapping", {}
+        )
+
         self._worker_stop_futures = []
         for object_group in self._object_groups:
             worker_stop_future = self.event_loop.create_future()
@@ -116,8 +120,15 @@ class BacnetSource(Source):
                 timestamp, device_name, device_address_string, result_values = result
 
                 device_config = self._device_config[device_address_string]
+                device_name = self._object_name_vendor_specific_mapping.get(
+                    device_name, device_name
+                )
 
                 for object_name, object_result in result_values.items():
+                    object_name = self._object_name_vendor_specific_mapping.get(
+                        object_name, object_name
+                    )
+
                     # TODO maybe support more placeholders
                     metric_id = (
                         Template(device_config["metric_id"])
@@ -212,6 +223,10 @@ class BacnetSource(Source):
             )
             return
 
+        device_name = self._object_name_vendor_specific_mapping.get(
+            device_info["objectName"], device_info["objectName"]
+        )
+
         metrics = {}
 
         for object_instance in object_group["object_instances"]:
@@ -228,14 +243,13 @@ class BacnetSource(Source):
                 )
                 continue
 
+            object_name = self._object_name_vendor_specific_mapping.get(
+                object_info["objectName"], object_info["objectName"]
+            )
+
             metric_id = (
                 Template(object_group["metric_id"])
-                .safe_substitute(
-                    {
-                        "objectName": object_info["objectName"],
-                        "deviceName": device_info["objectName"],
-                    }
-                )
+                .safe_substitute({"objectName": object_name, "deviceName": device_name})
                 .replace("'", ".")
                 .replace(" ", "")
             )
@@ -244,9 +258,9 @@ class BacnetSource(Source):
                     Template(object_group["description"])
                     .safe_substitute(
                         {
-                            "objectName": object_info["objectName"],
+                            "objectName": object_name,
                             "objectDescription": object_info["description"],
-                            "deviceName": device_info["objectName"],
+                            "deviceName": device_name,
                             "deviceDescription": device_info["description"],
                         }
                     )
