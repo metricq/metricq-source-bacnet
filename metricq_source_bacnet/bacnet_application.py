@@ -223,7 +223,8 @@ class BacNetMetricQReader(BIPSimpleApplication):
     def request_device_properties(self, device_address_str: str, properties=None):
         if threading.current_thread() == threading.main_thread():
             logger.error(
-                "request_device_properties called from main thread! Run it from an executor!"
+                "request_device_properties called from main thread! Run it from an executor!",
+                stack_info=True,
             )
 
         if properties is None:
@@ -284,7 +285,8 @@ class BacNetMetricQReader(BIPSimpleApplication):
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
-                "request_object_properties called from main thread! Run it from an executor!"
+                "request_object_properties called from main thread! Run it from an executor!",
+                stack_info=True,
             )
 
         if properties is None:
