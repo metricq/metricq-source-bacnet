@@ -48,6 +48,15 @@ from metricq_source_bacnet.bacnet_utils import BetterDeviceInfoCache
 logger = get_logger(__name__)
 
 
+def _cachekey_tuple_to_str(cache_key_tuple: Tuple[str, str, int]) -> str:
+    return "{}-*-{}-*-{}".format(*cache_key_tuple)
+
+
+def _cachekey_str_to_tuple(cache_key_str: str) -> Tuple[str, str, int]:
+    device_address_str, object_type, object_instance = cache_key_str.split("-*-", 3)
+    return device_address_str, object_type, int(object_instance)
+
+
 class BacNetMetricQReader(BIPSimpleApplication):
     def __init__(
         self,
@@ -72,7 +81,10 @@ class BacNetMetricQReader(BIPSimpleApplication):
             if disk_cache_filename:
                 try:
                     with open(disk_cache_filename) as disk_cache_file:
-                        self._object_info_cache = json.load(disk_cache_file)
+                        self._object_info_cache = {
+                            _cachekey_str_to_tuple(key): value
+                            for key, value in json.load(disk_cache_file).items()
+                        }
                 except OSError:
                     logger.warning(
                         "Can't read disk cache file. Starting with empty cache!",
@@ -101,7 +113,13 @@ class BacNetMetricQReader(BIPSimpleApplication):
         if self._disk_cache_filename:
             try:
                 with open(self._disk_cache_filename, "w") as disk_cache_file:
-                    json.dump(self._object_info_cache, disk_cache_file)
+                    json.dump(
+                        {
+                            _cachekey_tuple_to_str(key): value
+                            for key, value in self._object_info_cache
+                        },
+                        disk_cache_file,
+                    )
             except OSError:
                 logger.warning("Can't write disk cache file!", exc_info=True)
 
