@@ -161,11 +161,13 @@ class BacnetSource(Source):
         # TODO wait short random time
 
         await self.event_loop.run_in_executor(
-            None, self._bacnet_reader.request_device_properties(device_address_str)
+            None, self._bacnet_reader.request_device_properties, device_address_str
         )
         await self.event_loop.run_in_executor(
             None,
-            self._bacnet_reader.request_object_properties(device_address_str, objects),
+            self._bacnet_reader.request_object_properties,
+            device_address_str,
+            objects,
         )
 
         device_info = self._bacnet_reader.get_device_info(device_address_str)
