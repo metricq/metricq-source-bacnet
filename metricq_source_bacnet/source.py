@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
+import random
 import threading
 from asyncio import Future
 from string import Template
@@ -158,7 +159,9 @@ class BacnetSource(Source):
             "" if threading.current_thread() == threading.main_thread() else "not",
         )
 
-        # TODO wait short random time
+        # wait for random time between 10 ms and 10.01s
+        random_wait_time = random.random() * 10 + 0.01
+        await asyncio.sleep(random_wait_time)
 
         await self.event_loop.run_in_executor(
             None, self._bacnet_reader.request_device_properties, device_address_str
