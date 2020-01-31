@@ -22,10 +22,14 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -221,7 +225,9 @@ class BacNetMetricQReader(BIPSimpleApplication):
         logger.debug("New device info {}", apdu.pduSource)
         self.deviceInfoCache.iam_device_info(apdu)
 
-    def request_device_properties(self, device_address_str: str, properties=None):
+    def request_device_properties(
+        self, device_address_str: str, properties=None, skip_when_cached=False
+    ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
                 "request_device_properties called from main thread! Run it from an executor!",
@@ -245,6 +251,14 @@ class BacNetMetricQReader(BIPSimpleApplication):
                 logger.error(
                     "Device with address {} is not in device cache!", device_address_str
                 )
+                return
+
+        if skip_when_cached:
+            cached_object_info = self._object_info_cache[
+                (device_address_str, "device", device_info.deviceIdentifier)
+            ]
+            if all(property in cached_object_info for property in properties):
+                logger.debug("Device info already in cache. Skipping!")
                 return
 
         prop_reference_list = [
@@ -283,6 +297,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
         device_address_str: str,
         objects: Sequence[Tuple[Union[int, str], int]],
         properties=None,
+        skip_when_cached=False,
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
@@ -294,6 +309,26 @@ class BacNetMetricQReader(BIPSimpleApplication):
             properties = ["objectName", "description", "units"]
 
         device_address = Address(device_address_str)
+
+        if skip_when_cached:
+            object_to_request = []
+            for object_type, object_instance in objects:
+                cached_object_info = self._object_info_cache[
+                    (device_address_str, object_type, object_instance)
+                ]
+                if all(property in cached_object_info for property in properties):
+                    logger.debug(
+                        "Object info for {} already in cache. Skipping!",
+                        (object_type, object_instance),
+                    )
+                else:
+                    object_to_request.append((object_type, object_instance))
+
+            if not object_to_request:
+                logger.debug("All objects already in cache")
+                return
+
+            objects = object_to_request
 
         prop_reference_list = [
             PropertyReference(propertyIdentifier=property) for property in properties
