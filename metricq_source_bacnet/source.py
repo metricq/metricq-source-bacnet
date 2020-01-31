@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
+import functools
 import random
 import threading
 from asyncio import Future
@@ -186,16 +187,20 @@ class BacnetSource(Source):
 
         await self.event_loop.run_in_executor(
             None,
-            self._bacnet_reader.request_device_properties,
-            device_address_str,
-            skip_when_cached=True,
+            functools.partial(
+                self._bacnet_reader.request_device_properties,
+                device_address_str,
+                skip_when_cached=True,
+            ),
         )
         await self.event_loop.run_in_executor(
             None,
-            self._bacnet_reader.request_object_properties,
-            device_address_str,
-            objects,
-            skip_when_cached=True,
+            functools.partial(
+                self._bacnet_reader.request_object_properties,
+                device_address_str,
+                objects,
+                skip_when_cached=True,
+            ),
         )
 
         device_info = self._bacnet_reader.get_device_info(device_address_str)
