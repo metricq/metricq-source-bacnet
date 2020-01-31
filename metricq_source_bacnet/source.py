@@ -48,12 +48,16 @@ class BacnetSource(Source):
         self._bacnet_reader: Optional[BacNetMetricQReader] = None
         self._result_queue = asyncio.Queue()
         self._main_task_stop_future = None
+        self._worker_stop_futures: List[Future] = []
 
     @rpc_handler("config")
     async def _on_config(self, **config):
 
         if self._bacnet_reader:
             self._bacnet_reader.stop()
+
+        for worker_stop_future in self._worker_stop_futures:
+            worker_stop_future.set_result(None)
 
         # FIXME prevent cache loss on reconfigure
         self._bacnet_reader = BacNetMetricQReader(
@@ -84,10 +88,7 @@ class BacnetSource(Source):
                 object_group_config.update(object_group_device_config)
                 self._object_groups.append(object_group_config)
 
-        self._worker_stop_futures: List[Future] = []
-
-    async def task(self):
-        self._main_task_stop_future = self.event_loop.create_future()
+        self._worker_stop_futures = []
         for object_group in self._object_groups:
             worker_stop_future = self.event_loop.create_future()
             self._worker_stop_futures.append(worker_stop_future)
@@ -95,6 +96,9 @@ class BacnetSource(Source):
             self.event_loop.create_task(
                 self._worker_task(object_group, worker_stop_future)
             )
+
+    async def task(self):
+        self._main_task_stop_future = self.event_loop.create_future()
 
         while True:
             queue_get_task = asyncio.create_task(self._result_queue.get())
@@ -131,6 +135,7 @@ class BacnetSource(Source):
                 self._result_queue.task_done()
 
             if self._main_task_stop_future in done:
+                logger.info("stopping BACnetSource main task")
                 break
 
     async def stop(self, exception: Optional[Exception]):
