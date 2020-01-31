@@ -254,12 +254,12 @@ class BacNetMetricQReader(BIPSimpleApplication):
                 return
 
         if skip_when_cached:
-            cached_object_info = self._object_info_cache[
-                (device_address_str, "device", device_info.deviceIdentifier)
-            ]
-            if all(property in cached_object_info for property in properties):
-                logger.debug("Device info already in cache. Skipping!")
-                return
+            cache_key = (device_address_str, "device", device_info.deviceIdentifier)
+            if cache_key:
+                cached_object_info = self._object_info_cache[cache_key]
+                if all(property in cached_object_info for property in properties):
+                    logger.debug("Device info already in cache. Skipping!")
+                    return
 
         prop_reference_list = [
             PropertyReference(propertyIdentifier=property) for property in properties
@@ -313,16 +313,17 @@ class BacNetMetricQReader(BIPSimpleApplication):
         if skip_when_cached:
             object_to_request = []
             for object_type, object_instance in objects:
-                cached_object_info = self._object_info_cache[
-                    (device_address_str, object_type, object_instance)
-                ]
-                if all(property in cached_object_info for property in properties):
-                    logger.debug(
-                        "Object info for {} already in cache. Skipping!",
-                        (object_type, object_instance),
-                    )
-                else:
-                    object_to_request.append((object_type, object_instance))
+                cache_key = (device_address_str, object_type, object_instance)
+                if cache_key in self._object_info_cache:
+                    cached_object_info = self._object_info_cache[cache_key]
+                    if all(property in cached_object_info for property in properties):
+                        logger.debug(
+                            "Object info for {} already in cache. Skipping!",
+                            (object_type, object_instance),
+                        )
+                        continue
+
+                object_to_request.append((object_type, object_instance))
 
             if not object_to_request:
                 logger.debug("All objects already in cache")
