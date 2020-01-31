@@ -18,18 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import threading
-from threading import Thread
+from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-    WhoIsRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -63,8 +58,9 @@ class BacNetMetricQReader(BIPSimpleApplication):
         #  cache for object properties
         #  key is (device address, object type, object instance)
         #  value is dict of property name and value
-        # TODO create lock for _object_info_cache
-        self._object_info_cache: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+        self._object_info_cache_lock = RLock()
+        with self._object_info_cache_lock:
+            self._object_info_cache: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
 
         local_device_object = LocalDeviceObject(
             objectName="MetricQReader",
@@ -272,9 +268,10 @@ class BacNetMetricQReader(BIPSimpleApplication):
         if iocb.ioResponse:
             result_values = self._unpack_iocb(iocb)
             if device_object_identifier in result_values:
-                self._object_info_cache[
-                    (device_address_str, "device", device_info.deviceIdentifier)
-                ] = result_values[device_object_identifier]
+                with self._object_info_cache_lock:
+                    self._object_info_cache[
+                        (device_address_str, "device", device_info.deviceIdentifier)
+                    ] = result_values[device_object_identifier]
 
         # do something for error/reject/abort
         if iocb.ioError:
@@ -326,9 +323,10 @@ class BacNetMetricQReader(BIPSimpleApplication):
             result_values = self._unpack_iocb(iocb)
             for object_identifier in result_values:
                 object_type, object_instance = object_identifier
-                self._object_info_cache[
-                    (device_address_str, object_type, object_instance)
-                ] = result_values[object_identifier]
+                with self._object_info_cache_lock:
+                    self._object_info_cache[
+                        (device_address_str, object_type, object_instance)
+                    ] = result_values[object_identifier]
 
         # do something for error/reject/abort
         if iocb.ioError:
