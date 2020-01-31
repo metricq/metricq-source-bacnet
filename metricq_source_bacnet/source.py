@@ -47,6 +47,7 @@ class BacnetSource(Source):
         super().__init__(*args, **kwargs)
         self._bacnet_reader: Optional[BacNetMetricQReader] = None
         self._result_queue = asyncio.Queue()
+        self._main_task_stop_future = None
 
     @rpc_handler("config")
     async def _on_config(self, **config):
@@ -86,6 +87,7 @@ class BacnetSource(Source):
         self._worker_stop_futures: List[Future] = []
 
     async def task(self):
+        self._main_task_stop_future = self.event_loop.create_future()
         for object_group in self._object_groups:
             worker_stop_future = self.event_loop.create_future()
             self._worker_stop_futures.append(worker_stop_future)
@@ -95,30 +97,41 @@ class BacnetSource(Source):
             )
 
         while True:
-            # TODO make cancelable with future or so
-            result: Tuple[Timestamp, str, str, Dict] = await self._result_queue.get()
+            queue_get_task = asyncio.create_task(self._result_queue.get())
+            done, pending = await asyncio.wait(
+                {queue_get_task, self._main_task_stop_future},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
 
-            timestamp, device_name, device_address_string, result_values = result
+            if queue_get_task in done:
+                result: Tuple[Timestamp, str, str, Dict] = queue_get_task.result()
 
-            device_config = self._device_config[device_address_string]
+                timestamp, device_name, device_address_string, result_values = result
 
-            for object_name, object_result in result_values.items():
-                # TODO maybe support more placeholders
-                metric_id = (
-                    Template(device_config["metric_id"])
-                    .safe_substitute(
-                        {"objectName": object_name, "deviceName": device_name}
+                device_config = self._device_config[device_address_string]
+
+                for object_name, object_result in result_values.items():
+                    # TODO maybe support more placeholders
+                    metric_id = (
+                        Template(device_config["metric_id"])
+                        .safe_substitute(
+                            {"objectName": object_name, "deviceName": device_name}
+                        )
+                        .replace("'", ".")
+                        .replace(" ", "")
                     )
-                    .replace("'", ".")
-                    .replace(" ", "")
-                )
-                if "presentValue" in object_result and (
-                    object_result["presentValue"],
-                    (int, float),
-                ):
-                    await self.send(metric_id, timestamp, object_result["presentValue"])
+                    if "presentValue" in object_result and (
+                        object_result["presentValue"],
+                        (int, float),
+                    ):
+                        await self.send(
+                            metric_id, timestamp, object_result["presentValue"]
+                        )
 
-            self._result_queue.task_done()
+                self._result_queue.task_done()
+
+            if self._main_task_stop_future in done:
+                break
 
     async def stop(self, exception: Optional[Exception]):
         logger.debug("stop()")
@@ -128,6 +141,9 @@ class BacnetSource(Source):
             worker_stop_future.set_result(None)
 
         await self._result_queue.join()
+
+        if self._main_task_stop_future is not None:
+            self._main_task_stop_future.set_result(None)
 
         await super().stop(exception)
 
