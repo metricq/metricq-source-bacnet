@@ -23,14 +23,10 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -85,7 +81,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
                             _cachekey_str_to_tuple(key): value
                             for key, value in json.load(disk_cache_file).items()
                         }
-                except OSError:
+                except (OSError, json.decoder.JSONDecodeError):
                     logger.warning(
                         "Can't read disk cache file. Starting with empty cache!",
                         exc_info=True,
@@ -116,7 +112,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
                     json.dump(
                         {
                             _cachekey_tuple_to_str(key): value
-                            for key, value in self._object_info_cache
+                            for key, value in self._object_info_cache.items()
                         },
                         disk_cache_file,
                     )
