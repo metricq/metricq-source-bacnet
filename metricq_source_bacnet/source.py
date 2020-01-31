@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
+import threading
 from asyncio import Future
 from string import Template
 from typing import Dict, List, Optional, Tuple, Union
@@ -151,6 +152,11 @@ class BacnetSource(Source):
         objects = [
             (object_type, instance) for instance in object_group["object_instances"]
         ]
+
+        logger.debug(
+            "This is {} the main thread.",
+            "" if threading.current_thread() == threading.main_thread() else "not",
+        )
 
         # TODO wait short random time
 

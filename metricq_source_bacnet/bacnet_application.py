@@ -17,13 +17,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
+import threading
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest, WhoIsRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+    WhoIsRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -57,6 +63,7 @@ class BacNetMetricQReader(BIPSimpleApplication):
         #  cache for object properties
         #  key is (device address, object type, object instance)
         #  value is dict of property name and value
+        # TODO create lock for _object_info_cache
         self._object_info_cache: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
 
         local_device_object = LocalDeviceObject(
@@ -207,6 +214,13 @@ class BacNetMetricQReader(BIPSimpleApplication):
 
     def do_IAmRequest(self, apdu):
         super(BacNetMetricQReader, self).do_IAmRequest(apdu)
+
+        if threading.current_thread() != self._thread:
+            logger.debug(
+                "IAm-Request handler not called from BACpypes thread! {}",
+                threading.current_thread(),
+            )
+
         logger.debug("New device info {}", apdu.pduSource)
         self.deviceInfoCache.iam_device_info(apdu)
 
