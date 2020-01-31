@@ -235,7 +235,6 @@ class BacnetSource(Source):
                         }
                     )
                     .replace("'", ".")
-                    .replace(" ", "")
                 )
                 metadata["description"] = description
             if "units" in object_info:
