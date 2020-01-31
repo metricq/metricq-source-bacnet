@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import threading
+import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
@@ -234,8 +235,8 @@ class BacNetMetricQReader(BIPSimpleApplication):
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
         if not device_info:
-
             deferred(self.who_is, address=device_address)
+            time.sleep(5)
 
             device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
                 device_address
@@ -293,11 +294,6 @@ class BacNetMetricQReader(BIPSimpleApplication):
             properties = ["objectName", "description", "units"]
 
         device_address = Address(device_address_str)
-        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
-
-        if not device_info:
-            # TODO make who is request to fill device cache
-            pass
 
         prop_reference_list = [
             PropertyReference(propertyIdentifier=property) for property in properties
