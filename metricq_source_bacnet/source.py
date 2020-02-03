@@ -136,6 +136,8 @@ class BacnetSource(Source):
                             {"objectName": object_name, "deviceName": device_name}
                         )
                         .replace("'", ".")
+                        .replace("`", ".")
+                        .replace("´", ".")
                         .replace(" ", "")
                     )
                     if "presentValue" in object_result and (
@@ -251,6 +253,8 @@ class BacnetSource(Source):
                 Template(object_group["metric_id"])
                 .safe_substitute({"objectName": object_name, "deviceName": device_name})
                 .replace("'", ".")
+                .replace("`", ".")
+                .replace("´", ".")
                 .replace(" ", "")
             )
             if "description" in object_group:
@@ -265,6 +269,8 @@ class BacnetSource(Source):
                         }
                     )
                     .replace("'", ".")
+                    .replace("`", ".")
+                    .replace("´", ".")
                 )
                 metadata["description"] = description
             if "units" in object_info:
