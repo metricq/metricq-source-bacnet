@@ -61,7 +61,6 @@ class BacnetSource(Source):
         for worker_stop_future in self._worker_stop_futures:
             worker_stop_future.set_result(None)
 
-        # FIXME prevent cache loss on reconfigure
         self._bacnet_reader = BacNetMetricQReader(
             reader_address=config["bacnetReaderAddress"],
             reader_object_identifier=config["bacnetReaderObjectIdentifier"],
