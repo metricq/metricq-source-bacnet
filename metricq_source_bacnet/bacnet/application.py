@@ -23,10 +23,14 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -53,7 +57,7 @@ def _cachekey_str_to_tuple(cache_key_str: str) -> Tuple[str, str, int]:
     return device_address_str, object_type, int(object_instance)
 
 
-class BacNetMetricQReader(BIPSimpleApplication):
+class BACnetMetricQReader(BIPSimpleApplication):
     def __init__(
         self,
         reader_address,
@@ -244,11 +248,11 @@ class BacNetMetricQReader(BIPSimpleApplication):
             logger.error("IOCB returned with error: {}", iocb.ioError)
 
     def who_is(self, low_limit=None, high_limit=None, address=None):
-        super(BacNetMetricQReader, self).who_is(low_limit, high_limit, address)
+        super(BACnetMetricQReader, self).who_is(low_limit, high_limit, address)
         # TODO maybe save request for incoming I-Am
 
     def do_IAmRequest(self, apdu):
-        super(BacNetMetricQReader, self).do_IAmRequest(apdu)
+        super(BACnetMetricQReader, self).do_IAmRequest(apdu)
 
         if threading.current_thread() != self._thread:
             logger.warning(

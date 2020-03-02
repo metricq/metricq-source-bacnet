@@ -26,7 +26,7 @@ from string import Template
 from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
-from metricq_source_bacnet.bacnet_application import BacNetMetricQReader
+from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
 
 logger = get_logger(__name__)
 
@@ -52,7 +52,7 @@ def substitute_all(string: str, substitutions: dict) -> str:
 class BacnetSource(Source):
     def __init__(self, *args, disk_cache_filename=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._bacnet_reader: Optional[BacNetMetricQReader] = None
+        self._bacnet_reader: Optional[BACnetMetricQReader] = None
         self._result_queue = asyncio.Queue()
         self._main_task_stop_future = None
         self._worker_stop_futures: List[Future] = []
@@ -67,7 +67,7 @@ class BacnetSource(Source):
         for worker_stop_future in self._worker_stop_futures:
             worker_stop_future.set_result(None)
 
-        self._bacnet_reader = BacNetMetricQReader(
+        self._bacnet_reader = BACnetMetricQReader(
             reader_address=config["bacnetReaderAddress"],
             reader_object_identifier=config["bacnetReaderObjectIdentifier"],
             put_result_in_source_queue_fn=self._bacnet_reader_put_result_in_source_queue,
