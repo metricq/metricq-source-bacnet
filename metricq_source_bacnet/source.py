@@ -281,7 +281,9 @@ class BacnetSource(Source):
                     .replace("`", ".")
                     .replace("´", ".")
                 )
-                metadata["description"] = substitute_all(description, self._object_description_vendor_specific_substitutions)
+                metadata["description"] = substitute_all(description,
+                    self._object_description_vendor_specific_substitutions
+                )
             if "units" in object_info:
                 metadata["unit"] = object_info["units"]
 
