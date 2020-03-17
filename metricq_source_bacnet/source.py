@@ -43,6 +43,12 @@ def unpack_range(range_str: str) -> List[int]:
     return ret
 
 
+def substitute_all(string: str, substitutions: dict) -> str:
+    for k, v in substitutions.items():
+        string = string.replace(k, v)
+    return string
+
+
 class BacnetSource(Source):
     def __init__(self, *args, disk_cache_filename=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,6 +98,10 @@ class BacnetSource(Source):
 
         self._object_name_vendor_specific_mapping = config.get(
             "vendorSpecificMapping", {}
+        )
+
+        self._object_description_vendor_specific_substitutions = config.get(
+            "vendorSpecificDescriptionSubstitutions", {}
         )
 
         self._worker_stop_futures = []
@@ -271,7 +281,7 @@ class BacnetSource(Source):
                     .replace("`", ".")
                     .replace("´", ".")
                 )
-                metadata["description"] = description
+                metadata["description"] = substitute_all(description, self._object_description_vendor_specific_substitutions)
             if "units" in object_info:
                 metadata["unit"] = object_info["units"]
 
