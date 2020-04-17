@@ -23,14 +23,10 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -437,7 +433,9 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         return None
 
-    def get_object_info(self, device_address_str: str, object_type, object_instance):
+    def get_object_info(
+        self, device_address_str: str, object_type, object_instance
+    ) -> Optional[Dict[str, Any]]:
         cache_key = (device_address_str, object_type, object_instance)
         if cache_key in self._object_info_cache:
             return self._object_info_cache[cache_key]
@@ -445,3 +443,30 @@ class BACnetMetricQReader(BIPSimpleApplication):
         # TODO maybe fill cache here
 
         return None
+
+    def get_device_info_for_cached_devices(self):
+        cached_devices = {}
+        for key in self.deviceInfoCache.cache.keys():
+            if isinstance(key, Address):
+                if key not in cached_devices:
+                    cached_devices[str(key)] = {
+                        "device_id": self.deviceInfoCache.get_device_info(
+                            key
+                        ).deviceIdentifier
+                    }
+
+            if isinstance(key, int):
+                device_info = self.deviceInfoCache.get_device_info(key)
+                if device_info.address not in cached_devices:
+                    cached_devices[str(device_info.address)] = {"device_id": key}
+
+        for address in cached_devices.keys():
+            object_info = self.get_object_info(
+                address, "device", cached_devices[address]["device_id"]
+            )
+            if object_info:
+                cached_devices[address]["device_name"] = object_info["objectName"]
+            else:
+                cached_devices[address]["device_name"] = "N/A"
+
+        return cached_devices

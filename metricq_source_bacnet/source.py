@@ -281,8 +281,8 @@ class BacnetSource(Source):
                     .replace("`", ".")
                     .replace("´", ".")
                 )
-                metadata["description"] = substitute_all(description,
-                    self._object_description_vendor_specific_substitutions
+                metadata["description"] = substitute_all(
+                    description, self._object_description_vendor_specific_substitutions
                 )
             if "units" in object_info:
                 metadata["unit"] = object_info["units"]
@@ -312,3 +312,33 @@ class BacnetSource(Source):
             except asyncio.TimeoutError:
                 # This is the normal case, just continue with the loop
                 continue
+
+    @rpc_handler("source_bacnet.get_advertised_devices")
+    async def _on_get_advertised_devices(self):
+        # {"ip": {"device_id": 1234, "device_name": "TRE.BLOB"}}
+        cached_devices = self._bacnet_reader.get_device_info_for_cached_devices()
+        for address in cached_devices.keys():
+            device_name = cached_devices[address]["device_name"]
+            if device_name in self._object_name_vendor_specific_mapping:
+                cached_devices[address][
+                    "device_name"
+                ] = f"{self._object_name_vendor_specific_mapping[device_name]} (orig: {device_name})"
+        return cached_devices
+
+    @rpc_handler("source_bacnet.get_device_name_from_ip")
+    async def _on_get_device_name_from_ip(self, ips):
+        # {"ip": {"device_id": 1234, "device_name": "TRE.BLOB"}}
+        devices = {}
+        for ip in ips:
+            device_info = self._bacnet_reader.get_device_info(ip)
+            device_name = device_info["device_name"]
+            devices[ip] = {
+                #  "device_id": device_info[] #TODO get device_i
+                "device_name": device_name
+            }
+
+            if device_name in self._object_name_vendor_specific_mapping:
+                devices[ip][
+                    "device_name"
+                ] = f"{self._object_name_vendor_specific_mapping[device_name]} (orig: {device_name})"
+        return devices
