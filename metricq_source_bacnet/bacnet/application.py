@@ -320,11 +320,15 @@ class BACnetMetricQReader(BIPSimpleApplication):
                 with self._object_info_cache_lock:
                     self._object_info_cache[
                         (device_address_str, "device", device_info.deviceIdentifier)
-                    ] = result_values[device_object_identifier]
+                    ].update(result_values[device_object_identifier])
+
+            return result_values[device_object_identifier]
 
         # do something for error/reject/abort
         if iocb.ioError:
             logger.error("IOCB returned with error: {}", iocb.ioError)
+
+        return None
 
     def request_object_properties(
         self,
@@ -392,11 +396,15 @@ class BACnetMetricQReader(BIPSimpleApplication):
                 with self._object_info_cache_lock:
                     self._object_info_cache[
                         (device_address_str, object_type, object_instance)
-                    ] = result_values[object_identifier]
+                    ].update(result_values[object_identifier])
+
+            return result_values
 
         # do something for error/reject/abort
         if iocb.ioError:
             logger.error("IOCB returned with error: {}", iocb.ioError)
+
+        return None
 
     def request_values(
         self, device_address_str: str, objects: Sequence[Tuple[Union[int, str], int]]
