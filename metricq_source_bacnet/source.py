@@ -27,8 +27,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import \
-    register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -349,3 +348,30 @@ class BacnetSource(Source):
                     "device_name"
                 ] = f"{self._object_name_vendor_specific_mapping[device_name]} (orig: {device_name})"
         return devices
+
+    @rpc_handler("source_bacnet.get_object_list_with_info")
+    async def _on_get_object_list_with_info(self, ip):
+        object_instance_list = await self.event_loop.run_in_executor(
+            None,
+            functools.partial(
+                self._bacnet_reader.request_device_properties,
+                device_address_str=ip,
+                properties=["objectList"],
+            ),
+        )
+        if object_instance_list:
+            object_name_list = await self.event_loop.run_in_executor(
+                None,
+                functools.partial(
+                    self._bacnet_reader.request_object_properties,
+                    device_address_str=ip,
+                    objects=object_instance_list["objectList"],
+                    properties=["objectName"],
+                ),
+            )
+            if object_name_list:
+                return {
+                    "{}-{}".format(*k): v["objectName"]
+                    for k, v in object_name_list.items()
+                }
+        return {}
