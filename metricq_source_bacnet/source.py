@@ -27,6 +27,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
+from metricq_source_bacnet.bacnet.object_types import \
+    register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -57,6 +59,8 @@ class BacnetSource(Source):
         self._main_task_stop_future = None
         self._worker_stop_futures: List[Future] = []
         self.disk_cache_filename = disk_cache_filename
+
+        register_extended_object_types()
 
     @rpc_handler("config")
     async def _on_config(self, **config):
@@ -254,8 +258,11 @@ class BacnetSource(Source):
                 )
                 continue
 
+            # Get vendor-specific-address from object cache
+            object_name = object_info.get("3000", object_info["objectName"])
+
             object_name = self._object_name_vendor_specific_mapping.get(
-                object_info["objectName"], object_info["objectName"]
+                object_name, object_name
             )
 
             metric_id = (
