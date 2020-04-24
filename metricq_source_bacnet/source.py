@@ -360,18 +360,41 @@ class BacnetSource(Source):
             ),
         )
         if object_instance_list:
-            object_name_list = await self.event_loop.run_in_executor(
+            objects_not_in_cache = []
+            object_info_list_from_cache = {}
+            for object_identifier in object_instance_list:
+                object_type, object_instance = object_identifier
+                object_info_from_cache = self._bacnet_reader.get_object_info(
+                    device_address_str=ip,
+                    object_type=object_type,
+                    object_instance=object_instance,
+                )
+                if (
+                    object_info_from_cache is None
+                    or "objectName" not in object_info_from_cache
+                    or "description" not in object_info_from_cache
+                ):
+                    objects_not_in_cache.append(object_identifier)
+                else:
+                    object_info_list_from_cache[
+                        object_identifier
+                    ] = object_info_from_cache
+
+            object_info_list = await self.event_loop.run_in_executor(
                 None,
                 functools.partial(
                     self._bacnet_reader.request_object_properties,
                     device_address_str=ip,
-                    objects=object_instance_list["objectList"],
-                    properties=["objectName"],
+                    objects=objects_not_in_cache,
+                    properties=["objectName", "description"],
                 ),
             )
-            if object_name_list:
+
+            object_info_list_from_cache.update(object_info_list)
+
+            if object_info_list_from_cache:
                 return {
-                    "{}-{}".format(*k): v["objectName"]
-                    for k, v in object_name_list.items()
+                    "{}-{}".format(*k): v
+                    for k, v in object_info_list_from_cache.items()
                 }
         return {}
