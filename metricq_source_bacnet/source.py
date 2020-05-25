@@ -27,8 +27,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import \
-    register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -338,7 +337,7 @@ class BacnetSource(Source):
         devices = {}
         for ip in ips:
             device_info = self._bacnet_reader.get_device_info(ip)
-            device_name = device_info["device_name"]
+            device_name = device_info["objectName"]
             devices[ip] = {
                 #  "device_id": device_info[] #TODO get device_i
                 "device_name": device_name
