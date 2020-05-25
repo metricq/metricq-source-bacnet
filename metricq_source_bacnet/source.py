@@ -27,7 +27,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import \
+    register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -320,7 +321,7 @@ class BacnetSource(Source):
                 continue
 
     @rpc_handler("source_bacnet.get_advertised_devices")
-    async def _on_get_advertised_devices(self):
+    async def _on_get_advertised_devices(self, **kwargs):
         # {"ip": {"device_id": 1234, "device_name": "TRE.BLOB"}}
         cached_devices = self._bacnet_reader.get_device_info_for_cached_devices()
         for address in cached_devices.keys():
@@ -332,7 +333,7 @@ class BacnetSource(Source):
         return cached_devices
 
     @rpc_handler("source_bacnet.get_device_name_from_ip")
-    async def _on_get_device_name_from_ip(self, ips):
+    async def _on_get_device_name_from_ip(self, ips, **kwargs):
         # {"ip": {"device_id": 1234, "device_name": "TRE.BLOB"}}
         devices = {}
         for ip in ips:
@@ -350,7 +351,7 @@ class BacnetSource(Source):
         return devices
 
     @rpc_handler("source_bacnet.get_object_list_with_info")
-    async def _on_get_object_list_with_info(self, ip):
+    async def _on_get_object_list_with_info(self, ip, **kwargs):
         object_instance_list = await self.event_loop.run_in_executor(
             None,
             functools.partial(
