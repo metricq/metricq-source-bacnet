@@ -23,10 +23,14 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -219,7 +223,9 @@ class BACnetMetricQReader(BIPSimpleApplication):
             )
             device_name: Optional[str] = self._object_info_cache[
                 (device_addr_str, "device", device_info.deviceIdentifier)
-            ].get("objectName")
+            ].get(
+                "objectName"
+            )  # TODO fix key check
 
             if device_name:
                 result_values_by_id = self._unpack_iocb(iocb)
@@ -228,7 +234,9 @@ class BACnetMetricQReader(BIPSimpleApplication):
                 for object_type, object_instance in result_values_by_id:
                     object_name: Optional[str] = self._object_info_cache[
                         (device_addr_str, object_type, object_instance)
-                    ].get("objectName")
+                    ].get(
+                        "objectName"
+                    )  # TODO fix key check
 
                     if object_name:
                         result_values[object_name] = result_values_by_id[
@@ -318,9 +326,16 @@ class BACnetMetricQReader(BIPSimpleApplication):
             result_values = self._unpack_iocb(iocb)
             if device_object_identifier in result_values:
                 with self._object_info_cache_lock:
-                    self._object_info_cache[
-                        (device_address_str, "device", device_info.deviceIdentifier)
-                    ].update(result_values[device_object_identifier])
+                    cache_key = (
+                        device_address_str,
+                        "device",
+                        device_info.deviceIdentifier,
+                    )
+                    if cache_key not in self._object_info_cache:
+                        self._object_info_cache[cache_key] = {}
+                    self._object_info_cache[cache_key].update(
+                        result_values[device_object_identifier]
+                    )
 
             return result_values[device_object_identifier]
 
@@ -394,9 +409,12 @@ class BACnetMetricQReader(BIPSimpleApplication):
             for object_identifier in result_values:
                 object_type, object_instance = object_identifier
                 with self._object_info_cache_lock:
-                    self._object_info_cache[
-                        (device_address_str, object_type, object_instance)
-                    ].update(result_values[object_identifier])
+                    cache_key = (device_address_str, object_type, object_instance)
+                    if cache_key not in self._object_info_cache:
+                        self._object_info_cache[cache_key] = {}
+                    self._object_info_cache[cache_key].update(
+                        result_values[object_identifier]
+                    )
 
             return result_values
 
