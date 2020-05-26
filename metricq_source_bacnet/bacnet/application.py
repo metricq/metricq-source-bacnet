@@ -478,3 +478,11 @@ class BACnetMetricQReader(BIPSimpleApplication):
                 cached_devices[address]["device_name"] = "N/A"
 
         return cached_devices
+
+    def get_device_id_for_ip(self, device_address_str: str):
+        device_address = Address(device_address_str)
+        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
+        if device_info:
+            return device_info.deviceIdentifier
+
+        return None

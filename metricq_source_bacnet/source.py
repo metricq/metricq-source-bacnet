@@ -337,11 +337,9 @@ class BacnetSource(Source):
         devices = {}
         for ip in ips:
             device_info = self._bacnet_reader.get_device_info(ip)
+            device_id = self._bacnet_reader.get_device_id_for_ip(ip)
             device_name = device_info["objectName"]
-            devices[ip] = {
-                #  "device_id": device_info[] #TODO get device_i
-                "device_name": device_name
-            }
+            devices[ip] = {"device_id": device_id, "device_name": device_name}
 
             if device_name in self._object_name_vendor_specific_mapping:
                 devices[ip][
