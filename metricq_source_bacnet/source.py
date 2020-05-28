@@ -27,8 +27,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import \
-    register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -394,7 +393,8 @@ class BacnetSource(Source):
                 ),
             )
 
-            object_info_list_from_cache.update(object_info_list)
+            if object_info_list:
+                object_info_list_from_cache.update(object_info_list)
 
             if object_info_list_from_cache:
                 return {
