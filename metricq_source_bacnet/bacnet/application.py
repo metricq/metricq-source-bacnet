@@ -23,14 +23,10 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -490,7 +486,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
             object_info = self.get_object_info(
                 address, "device", cached_devices[address]["device_id"]
             )
-            if object_info:
+            if object_info and "objectName" in object_info:
                 cached_devices[address]["device_name"] = object_info["objectName"]
             else:
                 cached_devices[address]["device_name"] = "N/A"
