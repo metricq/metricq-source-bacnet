@@ -94,6 +94,10 @@ class BacnetSource(Source):
                     "interval": object_config["interval"],
                 }
                 object_group_config.update(object_group_device_config)
+
+                if "description" in object_config:
+                    object_group_config["description"] = object_config["description"]
+
                 self._object_groups.append(object_group_config)
 
         self._object_name_vendor_specific_mapping = config.get(
@@ -281,8 +285,8 @@ class BacnetSource(Source):
                     .replace("`", ".")
                     .replace("´", ".")
                 )
-                metadata["description"] = substitute_all(description,
-                    self._object_description_vendor_specific_substitutions
+                metadata["description"] = substitute_all(
+                    description, self._object_description_vendor_specific_substitutions
                 )
             if "units" in object_info:
                 metadata["unit"] = object_info["units"]
