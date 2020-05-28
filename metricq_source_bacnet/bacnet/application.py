@@ -171,9 +171,12 @@ class BACnetMetricQReader(BIPSimpleApplication):
                     if property_array_index is not None:
                         property_label += "[" + str(property_array_index) + "]"
                     logger.error(
-                        "Error reading property {} : {}",
+                        "Error reading property {} for object {} from device {}: {} ({})",
                         property_label,
-                        read_result.propertyAccessError,
+                        object_identifier,
+                        apdu.pduSource,
+                        read_result.propertyAccessError.errorClass,
+                        read_result.propertyAccessError.errorCode,
                     )
 
                 else:
