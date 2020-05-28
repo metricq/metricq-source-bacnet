@@ -23,10 +23,14 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -51,6 +55,13 @@ def _cachekey_tuple_to_str(cache_key_tuple: Tuple[str, str, int]) -> str:
 def _cachekey_str_to_tuple(cache_key_str: str) -> Tuple[str, str, int]:
     device_address_str, object_type, object_instance = cache_key_str.split("-*-", 3)
     return device_address_str, object_type, int(object_instance)
+
+
+# from https://stackoverflow.com/a/312464
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
 
 
 class BACnetMetricQReader(BIPSimpleApplication):
@@ -380,45 +391,52 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
             objects = object_to_request
 
-        prop_reference_list = [
-            PropertyReference(propertyIdentifier=property) for property in properties
-        ]
+        result_values = []
 
-        read_access_specs = [
-            ReadAccessSpecification(
-                objectIdentifier=ObjectIdentifier(object_identifier),
-                listOfPropertyReferences=prop_reference_list,
+        for objects_chunk in chunks(objects, 20):
+            prop_reference_list = [
+                PropertyReference(propertyIdentifier=property)
+                for property in properties
+            ]
+
+            read_access_specs = [
+                ReadAccessSpecification(
+                    objectIdentifier=ObjectIdentifier(object_identifier),
+                    listOfPropertyReferences=prop_reference_list,
+                )
+                for object_identifier in objects_chunk
+            ]
+
+            request = ReadPropertyMultipleRequest(
+                listOfReadAccessSpecs=read_access_specs
             )
-            for object_identifier in objects
-        ]
+            request.pduDestination = device_address
 
-        request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
-        request.pduDestination = device_address
+            iocb = IOCB(request)
+            deferred(self.request_io, iocb)
 
-        iocb = IOCB(request)
-        deferred(self.request_io, iocb)
+            iocb.wait()
 
-        iocb.wait()
+            if iocb.ioResponse:
+                chunk_result_values = self._unpack_iocb(iocb)
+                for object_identifier in chunk_result_values:
+                    object_type, object_instance = object_identifier
+                    with self._object_info_cache_lock:
+                        cache_key = (device_address_str, object_type, object_instance)
+                        if cache_key not in self._object_info_cache:
+                            self._object_info_cache[cache_key] = {}
+                        self._object_info_cache[cache_key].update(
+                            chunk_result_values[object_identifier]
+                        )
 
-        if iocb.ioResponse:
-            result_values = self._unpack_iocb(iocb)
-            for object_identifier in result_values:
-                object_type, object_instance = object_identifier
-                with self._object_info_cache_lock:
-                    cache_key = (device_address_str, object_type, object_instance)
-                    if cache_key not in self._object_info_cache:
-                        self._object_info_cache[cache_key] = {}
-                    self._object_info_cache[cache_key].update(
-                        result_values[object_identifier]
-                    )
+                result_values.extend(chunk_result_values)
 
-            return result_values
+            # do something for error/reject/abort
+            if iocb.ioError:
+                logger.error("IOCB returned with error: {}", iocb.ioError)
+                # TODO: maybe raise error here
 
-        # do something for error/reject/abort
-        if iocb.ioError:
-            logger.error("IOCB returned with error: {}", iocb.ioError)
-
-        return None
+        return result_values
 
     def request_values(
         self, device_address_str: str, objects: Sequence[Tuple[Union[int, str], int]]
