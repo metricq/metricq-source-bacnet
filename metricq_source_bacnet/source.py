@@ -263,7 +263,11 @@ class BacnetSource(Source):
             object_info = self._bacnet_reader.get_object_info(
                 device_address_str, object_type, object_instance
             )
-            if object_info is None:
+            if (
+                object_info is None
+                or "objectName" not in object_info
+                or "description" not in object_info
+            ):
                 logger.error(
                     "No object info for ({}, {}) of {} available!",
                     object_type,
