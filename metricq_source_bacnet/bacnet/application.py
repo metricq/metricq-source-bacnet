@@ -23,14 +23,10 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -131,6 +127,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
                 logger.warning("Can't write disk cache file!", exc_info=True)
 
         self._thread.join()
+        self.close_socket()
 
     # TODO maybe at more checks from _iocb_callback
     def _unpack_iocb(
