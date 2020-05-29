@@ -27,7 +27,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import \
+    register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -106,6 +107,11 @@ class BacnetSource(Source):
         self._object_description_vendor_specific_substitutions = config.get(
             "vendorSpecificDescriptionSubstitutions", {}
         )
+
+        self._object_type_filter = config.get(
+            "discoverObjectTypeFilter",
+            ["analogValue", "analogInput", "analogOutput", "pulseConverter"],
+        ) + ["device"]
 
         self._worker_stop_futures = []
         for object_group in self._object_groups:
@@ -377,12 +383,16 @@ class BacnetSource(Source):
                     or "objectName" not in object_info_from_cache
                     or "description" not in object_info_from_cache
                 ):
-                    objects_not_in_cache.append(object_identifier)
+                    if object_type in self._object_type_filter:
+                        objects_not_in_cache.append(object_identifier)
+                    else:
+                        logger.debug(f"Ignoring object type: {object_type}")
                 else:
                     object_info_list_from_cache[
                         object_identifier
                     ] = object_info_from_cache
 
+            logger.debug(f"Objects missing in cache: {len(objects_not_in_cache)}")
             object_info_list = await self.event_loop.run_in_executor(
                 None,
                 functools.partial(
