@@ -97,6 +97,10 @@ class BacnetSource(Source):
                     "interval": object_config["interval"],
                 }
                 object_group_config.update(object_group_device_config)
+
+                if "description" in object_config:
+                    object_group_config["description"] = object_config["description"]
+
                 self._object_groups.append(object_group_config)
 
         self._object_name_vendor_specific_mapping = config.get(
@@ -249,7 +253,12 @@ class BacnetSource(Source):
         metrics = {}
 
         for object_instance in object_group["object_instances"]:
-            metadata = {"rate": 1.0 / interval}
+            metadata = {
+                "rate": 1.0 / interval,
+                "device": device_address_str,
+                "objectType": object_type,
+                "objectInstance": object_instance,
+            }
             object_info = self._bacnet_reader.get_object_info(
                 device_address_str, object_type, object_instance
             )
