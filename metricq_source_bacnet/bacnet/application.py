@@ -390,7 +390,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
             objects = object_to_request
 
-        result_values = []
+        result_values = {}
 
         for objects_chunk in chunks(objects, 20):
             prop_reference_list = [
@@ -428,7 +428,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
                             chunk_result_values[object_identifier]
                         )
 
-                result_values.extend(chunk_result_values)
+                result_values.update(chunk_result_values)
 
             # do something for error/reject/abort
             if iocb.ioError:
