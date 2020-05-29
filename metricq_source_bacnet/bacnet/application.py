@@ -231,22 +231,18 @@ class BACnetMetricQReader(BIPSimpleApplication):
             device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
                 apdu.pduSource
             )
-            device_name: Optional[str] = self._object_info_cache[
-                (device_addr_str, "device", device_info.deviceIdentifier)
-            ].get(
-                "objectName"
-            )  # TODO fix key check
+            device_name: Optional[str] = self._object_info_cache.get(
+                (device_addr_str, "device", device_info.deviceIdentifier), {}
+            ).get("objectName")
 
             if device_name:
                 result_values_by_id = self._unpack_iocb(iocb)
 
                 result_values = {}
                 for object_type, object_instance in result_values_by_id:
-                    object_name: Optional[str] = self._object_info_cache[
-                        (device_addr_str, object_type, object_instance)
-                    ].get(
-                        "objectName"
-                    )  # TODO fix key check
+                    object_name: Optional[str] = self._object_info_cache.get(
+                        (device_addr_str, object_type, object_instance), {}
+                    ).get("objectName")
 
                     if object_name:
                         result_values[object_name] = result_values_by_id[
