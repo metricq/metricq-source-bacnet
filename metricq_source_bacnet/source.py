@@ -27,8 +27,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import \
-    register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -373,6 +372,10 @@ class BacnetSource(Source):
             object_info_list_from_cache = {}
             for object_identifier in object_instance_list:
                 object_type, object_instance = object_identifier
+                if object_type not in self._object_type_filter:
+                    logger.debug(f"Ignoring object type: {object_type}")
+                    continue
+
                 object_info_from_cache = self._bacnet_reader.get_object_info(
                     device_address_str=ip,
                     object_type=object_type,
@@ -383,10 +386,7 @@ class BacnetSource(Source):
                     or "objectName" not in object_info_from_cache
                     or "description" not in object_info_from_cache
                 ):
-                    if object_type in self._object_type_filter:
-                        objects_not_in_cache.append(object_identifier)
-                    else:
-                        logger.debug(f"Ignoring object type: {object_type}")
+                    objects_not_in_cache.append(object_identifier)
                 else:
                     object_info_list_from_cache[
                         object_identifier
