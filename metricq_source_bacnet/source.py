@@ -180,7 +180,8 @@ class BacnetSource(Source):
         self._bacnet_reader.stop()
 
         for worker_stop_future in self._worker_stop_futures:
-            worker_stop_future.set_result(None)
+            if not worker_stop_future.done():
+                worker_stop_future.set_result(None)
 
         await self._result_queue.join()
 
