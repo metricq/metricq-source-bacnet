@@ -23,10 +23,14 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -98,6 +102,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
             objectName="MetricQReader",
             objectIdentifier=reader_object_identifier,
             vendorIdentifier=15,
+            maxApduLengthAccepted=1476,  # 1024
+            segmentationSupported="segmentedBoth",
         )
 
         BIPSimpleApplication.__init__(
