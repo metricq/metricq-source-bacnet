@@ -23,14 +23,10 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (
-    ReadAccessResult,
-    ReadAccessResultElement,
-    ReadAccessResultElementChoice,
-    ReadAccessSpecification,
-    ReadPropertyMultipleACK,
-    ReadPropertyMultipleRequest,
-)
+from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
+                           ReadAccessResultElementChoice,
+                           ReadAccessSpecification, ReadPropertyMultipleACK,
+                           ReadPropertyMultipleRequest)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -258,7 +254,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         # do something for error/reject/abort
         if iocb.ioError:
-            logger.error("IOCB returned with error: {}", iocb.ioError)
+            logger.error("IOCB returned with error in _iocb_callback: {}", iocb.ioError)
 
     def who_is(self, low_limit=None, high_limit=None, address=None):
         super(BACnetMetricQReader, self).who_is(low_limit, high_limit, address)
@@ -350,7 +346,13 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         # do something for error/reject/abort
         if iocb.ioError:
-            logger.error("IOCB returned with error: {}", iocb.ioError)
+            logger.error(
+                "IOCB returned with error for device properties request (device {}, objects {}, props {}) : {}",
+                device_address_str,
+                device_object_identifier,
+                properties,
+                iocb.ioError,
+            )
 
         return None
 
@@ -435,7 +437,13 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
             # do something for error/reject/abort
             if iocb.ioError:
-                logger.error("IOCB returned with error: {}", iocb.ioError)
+                logger.error(
+                    "IOCB returned with error for object properties request (device {}, objects {}, props {}): {}",
+                    device_address_str,
+                    objects,
+                    properties,
+                    iocb.ioError,
+                )
                 # TODO: maybe raise error here
 
         return result_values
