@@ -111,6 +111,10 @@ class BacnetSource(Source):
             "vendorSpecificDescriptionSubstitutions", {}
         )
 
+        self._object_name_vendor_specific_substitutions = config.get(
+            "vendorSpecificNameSubstitutions", {}
+        )
+
         self._object_type_filter = config.get(
             "discoverObjectTypeFilter",
             ["analogValue", "analogInput", "analogOutput", "pulseConverter"],
@@ -145,9 +149,17 @@ class BacnetSource(Source):
                     device_name, device_name
                 )
 
+                device_name = substitute_all(
+                    device_name, self._object_name_vendor_specific_substitutions
+                )
+
                 for object_name, object_result in result_values.items():
                     object_name = self._object_name_vendor_specific_mapping.get(
                         object_name, object_name
+                    )
+
+                    object_name = substitute_all(
+                        object_name, self._object_name_vendor_specific_substitutions
                     )
 
                     # TODO maybe support more placeholders
@@ -251,6 +263,10 @@ class BacnetSource(Source):
             device_info["objectName"], device_info["objectName"]
         )
 
+        device_name = substitute_all(
+            device_name, self._object_name_vendor_specific_substitutions
+        )
+
         metrics = {}
 
         for object_instance in object_group["object_instances"]:
@@ -281,6 +297,10 @@ class BacnetSource(Source):
 
             object_name = self._object_name_vendor_specific_mapping.get(
                 object_name, object_name
+            )
+
+            object_name = substitute_all(
+                object_name, self._object_name_vendor_specific_substitutions
             )
 
             metric_id = (
