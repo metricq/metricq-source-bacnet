@@ -1,11 +1,11 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 setup(
     name="metricq_source_bacnet",
     version="0.1",
     author="TU Dresden",
     python_requires=">=3.6",
-    packages=["metricq_source_bacnet"],
+    packages=find_packages(),
     scripts=[],
     entry_points="""
       [console_scripts]
