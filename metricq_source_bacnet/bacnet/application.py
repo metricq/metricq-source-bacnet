@@ -18,8 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import json
+import linecache
 import threading
 import time
+import tracemalloc
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
@@ -38,6 +40,7 @@ from bacpypes.local.device import LocalDeviceObject
 from bacpypes.object import get_datatype
 from bacpypes.pdu import Address
 from bacpypes.primitivedata import ObjectIdentifier, Unsigned
+from bacpypes.task import RecurringTask
 from metricq import get_logger
 from metricq_source_bacnet.bacnet_utils import BetterDeviceInfoCache
 
@@ -58,6 +61,103 @@ def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+class TraceTask(RecurringTask):
+    def __init__(self, interval):
+        RecurringTask.__init__(self, interval)
+        if not tracemalloc.is_tracing():
+            tracemalloc.start(10)
+
+        self.last_snapshot = tracemalloc.take_snapshot().filter_traces(
+            (
+                tracemalloc.Filter(False, tracemalloc.__file__),
+                tracemalloc.Filter(False, linecache.__file__),
+                tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+                tracemalloc.Filter(False, "<unknown>"),
+            )
+        )
+
+        # install it
+        self.install_task()
+
+    # from https://github.com/aiokitchen/aiomisc/blob/master/aiomisc/service/tracer.py
+    @staticmethod
+    def humanize(num, suffix="B"):
+        for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
+            if abs(num) < 1024.0:
+                return "%3.1f%s%s" % (num, unit, suffix)
+            num /= 1024.0
+        return "%.1f%s%s" % (num, "Yi", suffix)
+
+    def log_diff(self, diff):
+        STAT_FORMAT = (
+            "%(count)8s | "
+            "%(count_diff)8s | "
+            "%(size)8s | "
+            "%(size_diff)8s | "
+            "%(traceback)s\n"
+        )
+
+        results = STAT_FORMAT % {
+            "count": "Objects",
+            "count_diff": "Obj.Diff",
+            "size": "Memory",
+            "size_diff": "Mem.Diff",
+            "traceback": "Traceback",
+        }
+        for stat in diff[:20]:
+            results += STAT_FORMAT % {
+                "count": stat.count,
+                "count_diff": stat.count_diff,
+                "size": self.humanize(stat.size),
+                "size_diff": self.humanize(stat.size_diff),
+                "traceback": stat.traceback,
+            }
+
+        logger.info("Top memory usage:\n{}", results)
+
+    # from https://docs.python.org/3/library/tracemalloc.html#pretty-top
+    def display_top(self, snapshot, key_type="lineno", limit=10):
+        top_stats = snapshot.statistics(key_type)
+
+        logger.info("Top {} lines", limit)
+        for index, stat in enumerate(top_stats[:limit], 1):
+            frame = stat.traceback[0]
+            logger.info(
+                "#{}: {}:{}: {}",
+                index,
+                frame.filename,
+                frame.lineno,
+                self.humanize(stat.size),
+            )
+            line = linecache.getline(frame.filename, frame.lineno).strip()
+            if line:
+                logger.info("    {}", line)
+
+        other = top_stats[limit:]
+        if other:
+            size = sum(stat.size for stat in other)
+            logger.info("{} other: {}", len(other), self.humanize(size))
+        total = sum(stat.size for stat in top_stats)
+        logger.info("Total allocated size: {}", self.humanize(total))
+
+    def process_task(self):
+        new_snapshot = tracemalloc.take_snapshot().filter_traces(
+            (
+                tracemalloc.Filter(False, tracemalloc.__file__),
+                tracemalloc.Filter(False, linecache.__file__),
+                tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+                tracemalloc.Filter(False, "<unknown>"),
+            )
+        )
+
+        diff = new_snapshot.compare_to(self.last_snapshot, key_type="lineno")
+        self.log_diff(diff)
+
+        self.display_top(new_snapshot)
+
+        self.last_snapshot = new_snapshot
 
 
 class BACnetMetricQReader(BIPSimpleApplication):
@@ -108,6 +208,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
             reader_address,
             deviceInfoCache=BetterDeviceInfoCache(),
         )
+
+        # task = TraceTask(60 * 1000)
 
     def start(self):
         self._thread.start()

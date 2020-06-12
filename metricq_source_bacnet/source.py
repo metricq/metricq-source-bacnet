@@ -19,15 +19,18 @@
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 import functools
+import linecache
 import random
 import threading
+import tracemalloc
 from asyncio import Future
 from string import Template
 from typing import Dict, List, Optional, Tuple, Union
 
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
-from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
+from metricq_source_bacnet.bacnet.object_types import \
+    register_extended_object_types
 
 logger = get_logger(__name__)
 
@@ -57,6 +60,7 @@ class BacnetSource(Source):
         self._result_queue = asyncio.Queue()
         self._main_task_stop_future = None
         self._worker_stop_futures: List[Future] = []
+        self._tracer_worker_stop_future: Future = None
         self.disk_cache_filename = disk_cache_filename
 
         register_extended_object_types()
@@ -69,6 +73,9 @@ class BacnetSource(Source):
 
         for worker_stop_future in self._worker_stop_futures:
             worker_stop_future.set_result(None)
+
+        if self._tracer_worker_stop_future:
+            self._tracer_worker_stop_future.set_result(None)
 
         self._bacnet_reader = BACnetMetricQReader(
             reader_address=config["bacnetReaderAddress"],
@@ -128,6 +135,13 @@ class BacnetSource(Source):
             self.event_loop.create_task(
                 self._worker_task(object_group, worker_stop_future)
             )
+
+        self._tracer_worker_stop_future = self.event_loop.create_future()
+        self.event_loop.create_task(
+            self._tracer_task(
+                config.get("tracingInterval", 60), self._tracer_worker_stop_future
+            )
+        )
 
     async def task(self):
         self._main_task_stop_future = self.event_loop.create_future()
@@ -353,6 +367,114 @@ class BacnetSource(Source):
                 )
                 worker_task_stop_future.result()
                 logger.info("stopping BACnetSource worker task")
+                break
+            except asyncio.TimeoutError:
+                # This is the normal case, just continue with the loop
+                continue
+
+    async def _tracer_task(self, interval, worker_task_stop_future: Future):
+        if not tracemalloc.is_tracing():
+            tracemalloc.start(10)
+
+        deadline = Timestamp.now()
+        last_snapshot = tracemalloc.take_snapshot().filter_traces(
+            (
+                tracemalloc.Filter(False, tracemalloc.__file__),
+                tracemalloc.Filter(False, linecache.__file__),
+                tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+                tracemalloc.Filter(False, "<unknown>"),
+            )
+        )
+        # from https://github.com/aiokitchen/aiomisc/blob/master/aiomisc/service/tracer.py
+        def humanize(num, suffix="B"):
+            for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
+                if abs(num) < 1024.0:
+                    return "%3.1f%s%s" % (num, unit, suffix)
+                num /= 1024.0
+            return "%.1f%s%s" % (num, "Yi", suffix)
+
+        def log_diff(diff):
+            STAT_FORMAT = (
+                "%(count)8s | "
+                "%(count_diff)8s | "
+                "%(size)8s | "
+                "%(size_diff)8s | "
+                "%(traceback)s\n"
+            )
+
+            results = STAT_FORMAT % {
+                "count": "Objects",
+                "count_diff": "Obj.Diff",
+                "size": "Memory",
+                "size_diff": "Mem.Diff",
+                "traceback": "Traceback",
+            }
+            for stat in diff[:20]:
+                results += STAT_FORMAT % {
+                    "count": stat.count,
+                    "count_diff": stat.count_diff,
+                    "size": humanize(stat.size),
+                    "size_diff": humanize(stat.size_diff),
+                    "traceback": stat.traceback,
+                }
+
+            logger.info("Top memory usage:\n{}", results)
+
+        # from https://docs.python.org/3/library/tracemalloc.html#pretty-top
+        def display_top(snapshot, key_type="lineno", limit=10):
+            top_stats = snapshot.statistics(key_type)
+
+            logger.info("Top {} lines", limit)
+            for index, stat in enumerate(top_stats[:limit], 1):
+                frame = stat.traceback[0]
+                logger.info(
+                    "#{}: {}:{}: {}",
+                    index,
+                    frame.filename,
+                    frame.lineno,
+                    humanize(stat.size),
+                )
+                line = linecache.getline(frame.filename, frame.lineno).strip()
+                if line:
+                    logger.info("    {}", line)
+
+            other = top_stats[limit:]
+            if other:
+                size = sum(stat.size for stat in other)
+                logger.info("{} other: {}", len(other), humanize(size))
+            total = sum(stat.size for stat in top_stats)
+            logger.info("Total allocated size: {}", humanize(total))
+
+        while True:
+            new_snapshot = tracemalloc.take_snapshot().filter_traces(
+                (
+                    tracemalloc.Filter(False, tracemalloc.__file__),
+                    tracemalloc.Filter(False, linecache.__file__),
+                    tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+                    tracemalloc.Filter(False, "<unknown>"),
+                )
+            )
+
+            diff = new_snapshot.compare_to(last_snapshot, key_type="lineno")
+            log_diff(diff)
+
+            display_top(new_snapshot)
+
+            last_snapshot = new_snapshot
+
+            try:
+                deadline += Timedelta.from_s(interval)
+                now = Timestamp.now()
+                while now >= deadline:
+                    logger.warn("Missed deadline {}, it is now {}", deadline, now)
+                    deadline += Timedelta.from_s(interval)
+
+                timeout = (deadline - now).s
+                await asyncio.wait_for(
+                    asyncio.shield(worker_task_stop_future), timeout=timeout
+                )
+                worker_task_stop_future.result()
+                logger.info("stopping tracer worker task")
                 break
             except asyncio.TimeoutError:
                 # This is the normal case, just continue with the loop
