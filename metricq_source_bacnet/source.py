@@ -173,9 +173,8 @@ class BacnetSource(Source):
                         .replace("´", ".")
                         .replace(" ", "")
                     )
-                    if "presentValue" in object_result and (
-                        object_result["presentValue"],
-                        (int, float),
+                    if "presentValue" in object_result and isinstance(
+                        object_result["presentValue"], (int, float)
                     ):
                         await self.send(
                             metric_id, timestamp, object_result["presentValue"]
