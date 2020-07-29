@@ -23,10 +23,14 @@ import time
 from threading import RLock, Thread
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
-from bacpypes.apdu import (ReadAccessResult, ReadAccessResultElement,
-                           ReadAccessResultElementChoice,
-                           ReadAccessSpecification, ReadPropertyMultipleACK,
-                           ReadPropertyMultipleRequest)
+from bacpypes.apdu import (
+    ReadAccessResult,
+    ReadAccessResultElement,
+    ReadAccessResultElementChoice,
+    ReadAccessSpecification,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+)
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
 from bacpypes.constructeddata import Array
@@ -37,7 +41,7 @@ from bacpypes.iocb import IOCB
 from bacpypes.local.device import LocalDeviceObject
 from bacpypes.object import get_datatype
 from bacpypes.pdu import Address
-from bacpypes.primitivedata import ObjectIdentifier, Unsigned
+from bacpypes.primitivedata import ObjectIdentifier, Unsigned, Enumerated
 from metricq import get_logger
 from metricq_source_bacnet.bacnet_utils import BetterDeviceInfoCache
 
@@ -133,7 +137,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
     # TODO maybe at more checks from _iocb_callback
     def _unpack_iocb(
-        self, iocb: IOCB
+        self, iocb: IOCB, enum_to_int: bool = False
     ) -> Optional[Dict[Tuple[Union[str, int], int], Dict[str, Any]]]:
         apdu = iocb.ioResponse
 
@@ -206,7 +210,10 @@ class BACnetMetricQReader(BIPSimpleApplication):
                                 property_result[
                                     property_array_index
                                 ] = property_value.cast_out(datatype.subtype)
-
+                        elif issubclass(datatype, Enumerated) and enum_to_int:
+                            results_for_object[
+                                property_label
+                            ] = datatype(property_value.cast_out(datatype)).get_long()
                         else:
                             results_for_object[
                                 property_label
@@ -235,7 +242,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
             ).get("objectName")
 
             if device_name:
-                result_values_by_id = self._unpack_iocb(iocb)
+                result_values_by_id = self._unpack_iocb(iocb, enum_to_int=True)
 
                 result_values = {}
                 for object_type, object_instance in result_values_by_id:
