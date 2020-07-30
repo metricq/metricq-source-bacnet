@@ -57,6 +57,6 @@ def source_cmd(server, token, monitor, log_to_journal, disk_cache_filename):
     )
     if monitor:
         with aiomonitor.start_monitor(src.event_loop, locals={"source": src}):
-            src.run()
+            src.run(cancel_on_exception=True)
     else:
-        src.run()
+        src.run(cancel_on_exception=True)
