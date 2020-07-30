@@ -122,6 +122,9 @@ class BacnetSource(Source):
 
         self._worker_stop_futures = []
         for object_group in self._object_groups:
+            if object_group["object_type"] not in self._object_type_filter:
+                self._object_type_filter.append(object_group["object_type"])
+
             worker_stop_future = self.event_loop.create_future()
             self._worker_stop_futures.append(worker_stop_future)
 
