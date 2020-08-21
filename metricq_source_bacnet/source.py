@@ -189,7 +189,7 @@ class BacnetSource(Source):
                 logger.info("stopping BACnetSource main task")
                 break
 
-    async def stop(self, exception: Optional[Exception]):
+    async def stop(self, exception: Optional[Exception] = None):
         logger.debug("stop()")
         self._bacnet_reader.stop()
 
