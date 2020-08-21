@@ -191,7 +191,15 @@ class BacnetSource(Source):
 
     async def stop(self, exception: Optional[Exception] = None):
         logger.debug("stop()")
-        self._bacnet_reader.stop()
+
+        try:
+            self._bacnet_reader.stop()
+        except Exception as ex:
+            logger.error(
+                "Exception while stopping bacnet_reader: {}",
+                type(ex).__qualname__,
+                exc_info=(ex.__class__, ex, ex.__traceback__),
+            )
 
         for worker_stop_future in self._worker_stop_futures:
             if not worker_stop_future.done():
