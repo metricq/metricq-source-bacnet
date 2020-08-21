@@ -192,6 +192,12 @@ class BacnetSource(Source):
     async def stop(self, exception: Optional[Exception] = None):
         logger.debug("stop()")
 
+        if exception:
+            logger.error(
+                f"Source stopping by unhandled exception",
+                exc_info=(exception.__class__, exception, exception.__traceback__),
+            )
+
         try:
             self._bacnet_reader.stop()
         except Exception as ex:
