@@ -30,6 +30,7 @@ from bacpypes.apdu import (
     ReadAccessSpecification,
     ReadPropertyMultipleACK,
     ReadPropertyMultipleRequest,
+    ConfirmedRequestPDU,
 )
 from bacpypes.app import BIPSimpleApplication, DeviceInfo
 from bacpypes.basetypes import PropertyIdentifier, PropertyReference
@@ -261,7 +262,15 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         # do something for error/reject/abort
         if iocb.ioError:
-            logger.error("IOCB returned with error in _iocb_callback: {}", iocb.ioError)
+            device_addr = ""
+            if len(iocb.args) > 0 and isinstance(iocb.args[0], ConfirmedRequestPDU):
+                device_addr = iocb.args[0].pduDestination
+
+            logger.error(
+                "IOCB returned with error in _iocb_callback (device {}): {}",
+                device_addr,
+                iocb.ioError,
+            )
 
     def who_is(self, low_limit=None, high_limit=None, address=None):
         super(BACnetMetricQReader, self).who_is(low_limit, high_limit, address)
