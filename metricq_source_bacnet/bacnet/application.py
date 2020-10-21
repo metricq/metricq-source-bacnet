@@ -460,23 +460,24 @@ class BACnetMetricQReader(BIPSimpleApplication):
     ):
         device_address = Address(device_address_str)
 
-        prop_reference_list = [PropertyReference(propertyIdentifier="presentValue")]
+        for objects_chunk in chunks(objects, 20):
+            prop_reference_list = [PropertyReference(propertyIdentifier="presentValue")]
 
-        read_access_specs = [
-            ReadAccessSpecification(
-                objectIdentifier=ObjectIdentifier(object_identifier),
-                listOfPropertyReferences=prop_reference_list,
-            )
-            for object_identifier in objects
-        ]
+            read_access_specs = [
+                ReadAccessSpecification(
+                    objectIdentifier=ObjectIdentifier(object_identifier),
+                    listOfPropertyReferences=prop_reference_list,
+                )
+                for object_identifier in objects_chunk
+            ]
 
-        request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
-        request.pduDestination = device_address
+            request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
+            request.pduDestination = device_address
 
-        iocb = IOCB(request)
-        iocb.add_callback(self._iocb_callback)
+            iocb = IOCB(request)
+            iocb.add_callback(self._iocb_callback)
 
-        deferred(self.request_io, iocb)
+            deferred(self.request_io, iocb)
 
     def get_device_info(self, device_address_str: str):
         device_address = Address(device_address_str)
