@@ -389,6 +389,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
             properties = ["objectName", "description", "units"]
 
         device_address = Address(device_address_str)
+        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
         if skip_when_cached:
             object_to_request = []
@@ -413,7 +414,11 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         result_values = {}
 
-        for objects_chunk in chunks(objects, 20):
+        chunk_size = 20
+        if device_info and device_info.segmentationSupported == 'noSegmentation':
+            chunk_size = 4
+
+        for objects_chunk in chunks(objects, chunk_size):
             prop_reference_list = [
                 PropertyReference(propertyIdentifier=property)
                 for property in properties
@@ -468,8 +473,13 @@ class BACnetMetricQReader(BIPSimpleApplication):
         self, device_address_str: str, objects: Sequence[Tuple[Union[int, str], int]]
     ):
         device_address = Address(device_address_str)
+        device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
-        for objects_chunk in chunks(objects, 20):
+        chunk_size = 20
+        if device_info and device_info.segmentationSupported == 'noSegmentation':
+            chunk_size = 4
+
+        for objects_chunk in chunks(objects, chunk_size):
             prop_reference_list = [PropertyReference(propertyIdentifier="presentValue")]
 
             read_access_specs = [
