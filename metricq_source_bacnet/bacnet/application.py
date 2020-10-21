@@ -212,9 +212,9 @@ class BACnetMetricQReader(BIPSimpleApplication):
                                     property_array_index
                                 ] = property_value.cast_out(datatype.subtype)
                         elif issubclass(datatype, Enumerated) and enum_to_int:
-                            results_for_object[
-                                property_label
-                            ] = datatype(property_value.cast_out(datatype)).get_long()
+                            results_for_object[property_label] = datatype(
+                                property_value.cast_out(datatype)
+                            ).get_long()
                         else:
                             results_for_object[
                                 property_label
@@ -480,7 +480,9 @@ class BACnetMetricQReader(BIPSimpleApplication):
                 for object_identifier in objects_chunk
             ]
 
-            request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
+            request = ReadPropertyMultipleRequest(
+                listOfReadAccessSpecs=read_access_specs
+            )
             request.pduDestination = device_address
 
             iocb = IOCB(request)

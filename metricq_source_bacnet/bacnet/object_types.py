@@ -1,5 +1,9 @@
-from bacpypes.object import (AnalogInputObject, AnalogValueObject, Property,
-                             register_object_type)
+from bacpypes.object import (
+    AnalogInputObject,
+    AnalogValueObject,
+    Property,
+    register_object_type,
+)
 from bacpypes.primitivedata import CharacterString
 
 

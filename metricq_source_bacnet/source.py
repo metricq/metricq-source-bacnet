@@ -115,10 +115,13 @@ class BacnetSource(Source):
             "vendorSpecificNameSubstitutions", {}
         )
 
-        self._object_type_filter = config.get(
-            "discoverObjectTypeFilter",
-            ["analogValue", "analogInput", "analogOutput", "pulseConverter"],
-        ) + ["device"]
+        self._object_type_filter = (
+            config.get(
+                "discoverObjectTypeFilter",
+                ["analogValue", "analogInput", "analogOutput", "pulseConverter"],
+            )
+            + ["device"]
+        )
 
         self._worker_stop_futures = []
         for object_group in self._object_groups:
