@@ -85,7 +85,7 @@ class BacnetSource(Source):
             object_group_device_config = {
                 "metric_id": device_config["metricId"],
                 "description": device_config.get("description", "$objectDescription"),
-                "chunk_size": device_config.get("chunkSize")
+                "chunk_size": device_config.get("chunkSize"),
             }
 
             self._device_config[device_address_str] = object_group_device_config
@@ -361,13 +361,17 @@ class BacnetSource(Source):
 
         segmentationSupport = "unknown"
         device_address = Address(device_address_str)
-        device_info = self._bacnet_reader.deviceInfoCache.get_device_info(device_address)
+        device_info = self._bacnet_reader.deviceInfoCache.get_device_info(
+            device_address
+        )
         if device_info:
             segmentationSupport = device_info.segmentationSupported
 
         deadline = Timestamp.now()
         while True:
-            self._bacnet_reader.request_values(device_address_str, objects, chunk_size=chunk_size)
+            self._bacnet_reader.request_values(
+                device_address_str, objects, chunk_size=chunk_size
+            )
 
             try:
                 deadline += Timedelta.from_s(interval)
@@ -379,7 +383,7 @@ class BacnetSource(Source):
                         now,
                         device_address_str,
                         segmentationSupport,
-                        chunk_size
+                        chunk_size,
                     )
                     deadline += Timedelta.from_s(interval)
 
