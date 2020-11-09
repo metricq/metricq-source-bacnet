@@ -378,6 +378,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         objects: Sequence[Tuple[Union[int, str], int]],
         properties=None,
         skip_when_cached=False,
+        chunk_size: Optional[int] = None
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
@@ -414,9 +415,10 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         result_values = {}
 
-        chunk_size = 20
-        if device_info and device_info.segmentationSupported == 'noSegmentation':
-            chunk_size = 4
+        if not chunk_size:
+            chunk_size = 20
+            if device_info and device_info.segmentationSupported == 'noSegmentation':
+                chunk_size = 4
 
         for objects_chunk in chunks(objects, chunk_size):
             prop_reference_list = [
@@ -470,7 +472,10 @@ class BACnetMetricQReader(BIPSimpleApplication):
         return result_values
 
     def request_values(
-        self, device_address_str: str, objects: Sequence[Tuple[Union[int, str], int]]
+        self,
+        device_address_str: str,
+        objects: Sequence[Tuple[Union[int, str], int]],
+        chunk_size: Optional[int] = None
     ):
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
@@ -479,9 +484,10 @@ class BACnetMetricQReader(BIPSimpleApplication):
         # here we request only 1 property so scale
         chunk_scale = 3
 
-        chunk_size = 20 * chunk_scale
-        if device_info and device_info.segmentationSupported == 'noSegmentation':
-            chunk_size = 4 * chunk_scale
+        if not chunk_size:
+            chunk_size = 20 * chunk_scale
+            if device_info and device_info.segmentationSupported == 'noSegmentation':
+                chunk_size = 4 * chunk_scale
 
         logger.debug(f"Chunking for decive {device_address_str} is {chunk_size}")
 
