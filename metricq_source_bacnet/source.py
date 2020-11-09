@@ -25,6 +25,7 @@ from asyncio import Future
 from string import Template
 from typing import Dict, List, Optional, Tuple, Union
 
+from bacpypes.pdu import Address
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
 from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
@@ -358,6 +359,12 @@ class BacnetSource(Source):
 
         await self.declare_metrics(metrics)
 
+        segmentationSupport = "unknown"
+        device_address = Address(device_address_str)
+        device_info = self._bacnet_reader.deviceInfoCache.get_device_info(device_address)
+        if device_info:
+            segmentationSupport = device_info.segmentationSupported
+
         deadline = Timestamp.now()
         while True:
             self._bacnet_reader.request_values(device_address_str, objects, chunk_size=chunk_size)
@@ -366,7 +373,14 @@ class BacnetSource(Source):
                 deadline += Timedelta.from_s(interval)
                 now = Timestamp.now()
                 while now >= deadline:
-                    logger.warn("Missed deadline {}, it is now {}. Device: {}", deadline, now, device_address_str)
+                    logger.warn(
+                        "Missed deadline {}, it is now {}. Device: {}, {}, chunk size: {}",
+                        deadline,
+                        now,
+                        device_address_str,
+                        segmentationSupport,
+                        chunk_size
+                    )
                     deadline += Timedelta.from_s(interval)
 
                 timeout = (deadline - now).s
