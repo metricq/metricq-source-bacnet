@@ -475,9 +475,15 @@ class BACnetMetricQReader(BIPSimpleApplication):
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
-        chunk_size = 20
+        # we adjusted chunking for object property request, which requested 3 properties per object
+        # here we request only 1 property so scale
+        chunk_scale = 3
+
+        chunk_size = 20 * chunk_scale
         if device_info and device_info.segmentationSupported == 'noSegmentation':
-            chunk_size = 4
+            chunk_size = 4 * chunk_scale
+
+        logger.debug(f"Chunking for decive {device_address_str} is {chunk_size}")
 
         for objects_chunk in chunks(objects, chunk_size):
             prop_reference_list = [PropertyReference(propertyIdentifier="presentValue")]
