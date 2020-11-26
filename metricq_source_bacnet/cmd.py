@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq-source-bacnet.  If not, see <http://www.gnu.org/licenses/>.
 import logging
+import sys
 
 import click as click
 
@@ -55,8 +56,15 @@ def source_cmd(server, token, monitor, log_to_journal, disk_cache_filename):
     src = BacnetSource(
         token=token, management_url=server, disk_cache_filename=disk_cache_filename
     )
-    if monitor:
-        with aiomonitor.start_monitor(src.event_loop, locals={"source": src}):
+    try:
+        if monitor:
+            with aiomonitor.start_monitor(src.event_loop, locals={"source": src}):
+                src.run(cancel_on_exception=True)
+        else:
             src.run(cancel_on_exception=True)
-    else:
-        src.run(cancel_on_exception=True)
+    except Exception as exception:
+        logger.error(
+            f"Source stopped by unhandled exception",
+            exc_info=(exception.__class__, exception, exception.__traceback__),
+        )
+        sys.exit(1)
