@@ -120,6 +120,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
     def stop(self):
         bacnet_stop()
 
+        self.close_socket()
+
         if self._disk_cache_filename:
             try:
                 with open(self._disk_cache_filename, "w") as disk_cache_file:
@@ -133,8 +135,11 @@ class BACnetMetricQReader(BIPSimpleApplication):
             except OSError:
                 logger.warning("Can't write disk cache file!", exc_info=True)
 
-        self._thread.join()
-        self.close_socket()
+        self._thread.join(timeout=30.0)
+
+        if self._thread.is_alive():
+            logger.error("BACnet thread join timeouted")
+            raise RuntimeError("Joining BACnet runner thread timeouted!")
 
     # TODO maybe at more checks from _iocb_callback
     def _unpack_iocb(
