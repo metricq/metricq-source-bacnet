@@ -38,6 +38,7 @@ from bacpypes.constructeddata import Array
 from bacpypes.core import deferred
 from bacpypes.core import run as bacnet_run
 from bacpypes.core import stop as bacnet_stop
+from bacpypes.core import enable_sleeping as bacnet_enable_sleeping
 from bacpypes.iocb import IOCB
 from bacpypes.local.device import LocalDeviceObject
 from bacpypes.object import get_datatype
@@ -76,6 +77,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
         self._thread = Thread(target=bacnet_run)
         # MetricQ Bacnet Run Thread
         self._thread.name = "MQBRT#{}".format(reader_address)
+
+        bacnet_enable_sleeping()
 
         self._put_result_in_source_queue = put_result_in_source_queue_fn
 
