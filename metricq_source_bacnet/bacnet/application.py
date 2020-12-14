@@ -123,7 +123,10 @@ class BACnetMetricQReader(BIPSimpleApplication):
     def stop(self):
         bacnet_stop()
 
-        self.close_socket()
+        try:
+            self.close_socket()
+        except:
+            logger.exception("Error while closing bacpypes socket!")
 
         if self._disk_cache_filename:
             try:
