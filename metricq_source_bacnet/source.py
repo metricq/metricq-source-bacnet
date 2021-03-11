@@ -76,6 +76,7 @@ class BacnetSource(Source):
             reader_object_identifier=config["bacnetReaderObjectIdentifier"],
             put_result_in_source_queue_fn=self._bacnet_reader_put_result_in_source_queue,
             disk_cache_filename=self.disk_cache_filename,
+            retry_count=config.get("bacnetReaderRetryCount", 10)
         )
         self._bacnet_reader.start()
 

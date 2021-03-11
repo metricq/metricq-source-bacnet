@@ -73,6 +73,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         reader_object_identifier,
         put_result_in_source_queue_fn: Callable[[str, str, Dict], None],
         disk_cache_filename=None,
+        retry_count=10,
     ):
         self._thread = Thread(target=bacnet_run)
         # MetricQ Bacnet Run Thread
@@ -101,6 +102,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
                         "Can't read disk cache file. Starting with empty cache!",
                         exc_info=True,
                     )
+
+        self._retry_count = retry_count
 
         local_device_object = LocalDeviceObject(
             objectName="MetricQReader",
@@ -315,17 +318,25 @@ class BACnetMetricQReader(BIPSimpleApplication):
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
 
         if not device_info:
-            deferred(self.who_is, address=device_address)
-            time.sleep(5)
+            for retry in range(self._retry_count):
+                deferred(self.who_is, address=device_address)
+                time.sleep(5 * (retry + 1))
 
-            device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
-                device_address
-            )
-            if not device_info:
-                logger.error(
-                    "Device with address {} is not in device cache!", device_address_str
+                device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
+                    device_address
                 )
-                return
+                if device_info:
+                    break
+            else:
+                device_info: DeviceInfo = self.deviceInfoCache.get_device_info(
+                    device_address
+                )
+
+                if not device_info:
+                    logger.error(
+                        "Device with address {} is not in device cache!", device_address_str
+                    )
+                    return
 
         if skip_when_cached:
             cache_key = (device_address_str, "device", device_info.deviceIdentifier)
