@@ -334,7 +334,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
                 if not device_info:
                     logger.error(
-                        "Device with address {} is not in device cache!", device_address_str
+                        "Device with address {} is not in device cache!",
+                        device_address_str,
                     )
                     return
 
@@ -534,13 +535,23 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
             deferred(self.request_io, iocb)
 
-    def get_device_info(self, device_address_str: str):
+    def get_device_info(self, device_address_str: str, device_identifier: Optional[int] = None):
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
         if device_info:
+            if device_identifier and device_info.deviceIdentifier != device_identifier:
+                logger.warning(
+                    f"Device identifier mismatch for device {device_address_str}: provided [{device_identifier}], bacnet [{device_info.deviceIdentifier}]"
+                )
             return self.get_object_info(
                 device_address_str, "device", device_info.deviceIdentifier
             )
+
+        if device_identifier:
+            logger.info(
+                f"Using provided device identifier {device_identifier} for device {device_address_str}"
+            )
+            return self.get_object_info(device_address_str, "device", device_identifier)
 
         # TODO maybe fill cache here
 

@@ -76,7 +76,7 @@ class BacnetSource(Source):
             reader_object_identifier=config["bacnetReaderObjectIdentifier"],
             put_result_in_source_queue_fn=self._bacnet_reader_put_result_in_source_queue,
             disk_cache_filename=self.disk_cache_filename,
-            retry_count=config.get("bacnetReaderRetryCount", 10)
+            retry_count=config.get("bacnetReaderRetryCount", 10),
         )
         self._bacnet_reader.start()
 
@@ -87,6 +87,7 @@ class BacnetSource(Source):
                 "metric_id": device_config["metricId"],
                 "description": device_config.get("description", "$objectDescription"),
                 "chunk_size": device_config.get("chunkSize"),
+                "device_identifier": device_config.get("deviceIdentifier"),
             }
 
             self._device_config[device_address_str] = object_group_device_config
@@ -270,7 +271,9 @@ class BacnetSource(Source):
             ),
         )
 
-        device_info = self._bacnet_reader.get_device_info(device_address_str)
+        device_info = self._bacnet_reader.get_device_info(
+            device_address_str, device_identifier=object_group.get("device_identifier")
+        )
         if device_info is None:
             logger.error(
                 "Missing device info for {}. Stopping worker task!", device_address_str
