@@ -16,7 +16,7 @@ setup(
         "click",
         "click-completion",
         "click_log",
-        "metricq~=1.2",
+        "metricq~=2.0",
         "bacpypes~=0.18.0",
     ],
     extras_require={"journallogger": ["systemd"]},
