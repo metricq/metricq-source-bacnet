@@ -67,7 +67,9 @@ class BacnetSource(Source):
     async def _on_config(self, **config):
 
         if self._bacnet_reader:
+            logger.info("BACnet reader exists.")
             self._bacnet_reader.stop()
+            logger.info("BACnet reader stopped!")
 
         for worker_stop_future in self._worker_stop_futures:
             worker_stop_future.set_result(None)
@@ -85,6 +87,7 @@ class BacnetSource(Source):
             retry_count=config.get("bacnetReaderRetryCount", 10),
         )
         self._bacnet_reader.start()
+        logger.info("BACnet reader started.")
 
         self._object_groups: List[Dict[str, Union[str, int]]] = []
         self._device_config: Dict[str, Dict] = {}
@@ -254,6 +257,8 @@ class BacnetSource(Source):
             (object_type, instance) for instance in object_group["object_instances"]
         ]
         chunk_size = object_group.get("chunk_size")
+
+        logger.info(f"starting BACnetSource worker task for device {device_address_str}")
 
         logger.debug(
             "This is {} the main thread.",
