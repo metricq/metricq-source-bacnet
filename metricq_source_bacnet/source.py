@@ -60,17 +60,12 @@ class BacnetSource(Source):
         self._worker_stop_futures: List[Future] = []
         self._worker_tasks: List[Task] = []
         self.disk_cache_filename = disk_cache_filename
+        self._old_bacnet_reader_config = {}
 
         register_extended_object_types()
 
     @rpc_handler("config")
     async def _on_config(self, **config):
-
-        if self._bacnet_reader:
-            logger.info("BACnet reader exists.")
-            self._bacnet_reader.stop()
-            logger.info("BACnet reader stopped!")
-
         for worker_stop_future in self._worker_stop_futures:
             worker_stop_future.set_result(None)
 
@@ -79,15 +74,46 @@ class BacnetSource(Source):
             await asyncio.wait(self._worker_tasks)
             logger.info(f"Worker tasks finished!")
 
-        self._bacnet_reader = BACnetMetricQReader(
-            reader_address=config["bacnetReaderAddress"],
-            reader_object_identifier=config["bacnetReaderObjectIdentifier"],
-            put_result_in_source_queue_fn=self._bacnet_reader_put_result_in_source_queue,
-            disk_cache_filename=self.disk_cache_filename,
-            retry_count=config.get("bacnetReaderRetryCount", 10),
-        )
-        self._bacnet_reader.start()
-        logger.info("BACnet reader started.")
+        if self._bacnet_reader is None:
+            # only start BACnet reader once
+            # looks like bacpypes has a problem with a new run after stop
+            self._bacnet_reader = BACnetMetricQReader(
+                reader_address=config["bacnetReaderAddress"],
+                reader_object_identifier=config["bacnetReaderObjectIdentifier"],
+                put_result_in_source_queue_fn=self._bacnet_reader_put_result_in_source_queue,
+                disk_cache_filename=self.disk_cache_filename,
+                retry_count=config.get("bacnetReaderRetryCount", 10),
+            )
+            self._old_bacnet_reader_config = {
+                "reader_address": config["bacnetReaderAddress"],
+                "reader_object_identifier": config["bacnetReaderObjectIdentifier"],
+                "retry_count": config.get("bacnetReaderRetryCount", 10),
+            }
+            self._bacnet_reader.start()
+            logger.info("BACnet reader started.")
+        else:
+            if (
+                self._old_bacnet_reader_config["reader_address"]
+                != config["bacnetReaderAddress"]
+            ):
+                logger.error(
+                    "Can't change bacnetReaderAddress with reconfiguration. Please restart!"
+                )
+            if (
+                self._old_bacnet_reader_config["reader_object_identifier"]
+                != config["bacnetReaderObjectIdentifier"]
+            ):
+                logger.error(
+                    "Can't change bacnetReaderObjectIdentifier with reconfiguration. Please restart!"
+                )
+            if (
+                "bacnetReaderRetryCount" in config
+                and self._old_bacnet_reader_config["retry_count"]
+                != config["bacnetReaderRetryCount"]
+            ):
+                logger.error(
+                    "Can't change bacnetReaderRetryCount with reconfiguration. Please restart!"
+                )
 
         self._object_groups: List[Dict[str, Union[str, int]]] = []
         self._device_config: Dict[str, Dict] = {}
@@ -145,9 +171,11 @@ class BacnetSource(Source):
             worker_stop_future = self.event_loop.create_future()
             self._worker_stop_futures.append(worker_stop_future)
 
-            self._worker_tasks.append(self.event_loop.create_task(
-                self._worker_task(object_group, worker_stop_future)
-            ))
+            self._worker_tasks.append(
+                self.event_loop.create_task(
+                    self._worker_task(object_group, worker_stop_future)
+                )
+            )
 
     async def task(self):
         self._main_task_stop_future = self.event_loop.create_future()
@@ -258,7 +286,9 @@ class BacnetSource(Source):
         ]
         chunk_size = object_group.get("chunk_size")
 
-        logger.info(f"starting BACnetSource worker task for device {device_address_str}")
+        logger.info(
+            f"starting BACnetSource worker task for device {device_address_str}"
+        )
 
         logger.debug(
             "This is {} the main thread.",
