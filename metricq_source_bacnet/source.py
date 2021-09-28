@@ -21,7 +21,7 @@ import asyncio
 import functools
 import random
 import threading
-from asyncio import Future
+from asyncio import Future, Task
 from string import Template
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -58,6 +58,7 @@ class BacnetSource(Source):
         self._result_queue = asyncio.Queue()
         self._main_task_stop_future = None
         self._worker_stop_futures: List[Future] = []
+        self._worker_tasks: List[Task] = []
         self.disk_cache_filename = disk_cache_filename
 
         register_extended_object_types()
@@ -70,6 +71,11 @@ class BacnetSource(Source):
 
         for worker_stop_future in self._worker_stop_futures:
             worker_stop_future.set_result(None)
+
+        if self._worker_tasks:
+            logger.info(f"Waiting for {len(self._worker_tasks)} worker tasks to finish")
+            await asyncio.wait(self._worker_tasks)
+            logger.info(f"Worker tasks finished!")
 
         self._bacnet_reader = BACnetMetricQReader(
             reader_address=config["bacnetReaderAddress"],
@@ -128,6 +134,7 @@ class BacnetSource(Source):
         )
 
         self._worker_stop_futures = []
+        self._worker_tasks = []
         for object_group in self._object_groups:
             if object_group["object_type"] not in self._object_type_filter:
                 self._object_type_filter.append(object_group["object_type"])
@@ -135,9 +142,9 @@ class BacnetSource(Source):
             worker_stop_future = self.event_loop.create_future()
             self._worker_stop_futures.append(worker_stop_future)
 
-            self.event_loop.create_task(
+            self._worker_tasks.append(self.event_loop.create_task(
                 self._worker_task(object_group, worker_stop_future)
-            )
+            ))
 
     async def task(self):
         self._main_task_stop_future = self.event_loop.create_future()
@@ -202,6 +209,11 @@ class BacnetSource(Source):
         for worker_stop_future in self._worker_stop_futures:
             if not worker_stop_future.done():
                 worker_stop_future.set_result(None)
+
+        if self._worker_tasks:
+            logger.info(f"Waiting for {len(self._worker_tasks)} worker tasks to finish")
+            await asyncio.wait(self._worker_tasks)
+            logger.info(f"Worker tasks finished!")
 
         try:
             self._bacnet_reader.stop()
