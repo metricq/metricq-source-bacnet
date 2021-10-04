@@ -124,7 +124,7 @@ class BacnetSource(Source):
                 "description": device_config.get("description", "$objectDescription"),
                 "chunk_size": device_config.get("chunkSize"),
                 "device_identifier": device_config.get("deviceIdentifier"),
-                "nan_at_timeout": device_config.get("nanAtTimeout"),
+                "nan_at_timeout": device_config.get("nanAtTimeout", config.get("nanAtTimeout")),
             }
 
             self._device_config[device_address_str] = object_group_device_config
