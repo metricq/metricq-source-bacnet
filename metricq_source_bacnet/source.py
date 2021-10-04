@@ -431,8 +431,8 @@ class BacnetSource(Source):
                 for metric_id in metrics:
                     now = Timestamp.now()
                     last_timestamp = self._last_value_send_by_metric.get(metric_id, now)
-                    if now - last_timestamp >= Timedelta.from_s(interval * 6):
-                        timestamp_nan = now - Timedelta.from_s(interval)
+                    if now - last_timestamp >= 6 * Timedelta.from_s(interval):
+                        timestamp_nan = last_timestamp + 5 * Timedelta.from_s(interval)
                         self._last_value_send_by_metric[metric_id] = timestamp_nan
                         await self.send(metric_id, timestamp_nan, float("nan"))
 
