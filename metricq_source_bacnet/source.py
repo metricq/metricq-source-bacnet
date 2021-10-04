@@ -61,7 +61,7 @@ class BacnetSource(Source):
         self._worker_tasks: List[Task] = []
         self.disk_cache_filename = disk_cache_filename
         self._old_bacnet_reader_config = {}
-        self._last_value_send_by_metric: Dict[str, Timestamp] = {}
+        self._last_time_send_by_metric: Dict[str, Timestamp] = {}
 
         register_extended_object_types()
 
@@ -231,10 +231,10 @@ class BacnetSource(Source):
                     if "presentValue" in object_result and isinstance(
                         object_result["presentValue"], (int, float)
                     ):
-                        self._last_value_send_by_metric[metric_id] = timestamp
                         await self.send(
                             metric_id, timestamp, object_result["presentValue"]
                         )
+                        self._last_time_send_by_metric[metric_id] = timestamp
 
                 self._result_queue.task_done()
 
@@ -427,14 +427,13 @@ class BacnetSource(Source):
             )
 
             if object_group.get("nan_at_timeout"):
-
                 for metric_id in metrics:
                     now = Timestamp.now()
-                    last_timestamp = self._last_value_send_by_metric.get(metric_id, now)
+                    last_timestamp = self._last_time_send_by_metric.get(metric_id, now)
                     if now - last_timestamp >= 6 * Timedelta.from_s(interval):
                         timestamp_nan = last_timestamp + 5 * Timedelta.from_s(interval)
-                        self._last_value_send_by_metric[metric_id] = timestamp_nan
                         await self.send(metric_id, timestamp_nan, float("nan"))
+                        self._last_time_send_by_metric[metric_id] = timestamp_nan
 
                         logger.warn(
                             "Timeout for metric {} reached. Sending NaN! Device: {}",
