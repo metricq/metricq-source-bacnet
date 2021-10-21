@@ -44,7 +44,7 @@ from bacpypes.local.device import LocalDeviceObject
 from bacpypes.object import get_datatype
 from bacpypes.pdu import Address
 from bacpypes.primitivedata import ObjectIdentifier, Unsigned, Enumerated
-from metricq import get_logger
+from metricq import get_logger, Timedelta
 from metricq_source_bacnet.bacnet_utils import BetterDeviceInfoCache
 
 logger = get_logger(__name__)
@@ -303,7 +303,11 @@ class BACnetMetricQReader(BIPSimpleApplication):
         self.deviceInfoCache.iam_device_info(apdu)
 
     def request_device_properties(
-        self, device_address_str: str, properties=None, skip_when_cached=False
+        self,
+        device_address_str: str,
+        properties=None,
+        skip_when_cached=False,
+        request_timeout: Optional[Timedelta] = Timedelta.from_string("5min"),
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
@@ -363,6 +367,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
         iocb = IOCB(request)
         deferred(self.request_io, iocb)
+        if request_timeout:
+            iocb.set_timeout(request_timeout.s)
 
         iocb.wait()
 
@@ -402,6 +408,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         properties=None,
         skip_when_cached=False,
         chunk_size: Optional[int] = None,
+        request_timeout: Optional[Timedelta] = Timedelta.from_string("5min"),
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
@@ -464,6 +471,8 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
             iocb = IOCB(request)
             deferred(self.request_io, iocb)
+            if request_timeout:
+                iocb.set_timeout(request_timeout.s)
 
             iocb.wait()
 
@@ -499,6 +508,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         device_address_str: str,
         objects: Sequence[Tuple[Union[int, str], int]],
         chunk_size: Optional[int] = None,
+        request_timeout: Optional[Timedelta] = Timedelta.from_string("5min"),
     ):
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
@@ -532,10 +542,14 @@ class BACnetMetricQReader(BIPSimpleApplication):
 
             iocb = IOCB(request)
             iocb.add_callback(self._iocb_callback)
+            if request_timeout:
+                iocb.set_timeout(request_timeout.s)
 
             deferred(self.request_io, iocb)
 
-    def get_device_info(self, device_address_str: str, device_identifier: Optional[int] = None):
+    def get_device_info(
+        self, device_address_str: str, device_identifier: Optional[int] = None
+    ):
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
         if device_info:
