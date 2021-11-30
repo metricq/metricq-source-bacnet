@@ -307,7 +307,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         device_address_str: str,
         properties=None,
         skip_when_cached=False,
-        request_timeout: Optional[Timedelta] = Timedelta.from_string("5min"),
+        request_timeout: Optional[Timedelta] = None,
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
@@ -408,7 +408,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         properties=None,
         skip_when_cached=False,
         chunk_size: Optional[int] = None,
-        request_timeout: Optional[Timedelta] = Timedelta.from_string("5min"),
+        request_timeout: Optional[Timedelta] = None,
     ):
         if threading.current_thread() == threading.main_thread():
             logger.error(
@@ -508,7 +508,7 @@ class BACnetMetricQReader(BIPSimpleApplication):
         device_address_str: str,
         objects: Sequence[Tuple[Union[int, str], int]],
         chunk_size: Optional[int] = None,
-        request_timeout: Optional[Timedelta] = Timedelta.from_string("5min"),
+        request_timeout: Optional[Timedelta] = None,
     ):
         device_address = Address(device_address_str)
         device_info: DeviceInfo = self.deviceInfoCache.get_device_info(device_address)
