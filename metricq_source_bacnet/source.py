@@ -171,6 +171,10 @@ class BacnetSource(Source):
 
         self._worker_stop_futures = []
         self._worker_tasks = []
+        self._worker_tasks_count_expected = 0
+        self._worker_tasks_count_starting = 0
+        self._worker_tasks_count_running = 0
+        self._worker_tasks_count_failed = 0
         for object_group in self._object_groups:
             if object_group["object_type"] not in self._object_type_filter:
                 self._object_type_filter.append(object_group["object_type"])
@@ -184,8 +188,15 @@ class BacnetSource(Source):
                 )
             )
 
+        self._worker_tasks_count_expected = len(self._worker_tasks)
+
     async def task(self):
         self._main_task_stop_future = self.event_loop.create_future()
+
+        logger.info(
+            f"Current worker count (expected/starting/running/failed): ({self._worker_tasks_count_expected}/{self._worker_tasks_count_starting}/{self._worker_tasks_count_running}/{self._worker_tasks_count_failed})"
+        )
+        last_state_log = Timestamp.now()
 
         while True:
             queue_get_task = asyncio.create_task(self._result_queue.get())
@@ -238,6 +249,12 @@ class BacnetSource(Source):
 
                 self._result_queue.task_done()
 
+            if Timestamp.now() - last_state_log > Timedelta.from_string("30s"):
+                logger.info(
+                    f"Current worker count (expected/starting/running/failed): ({self._worker_tasks_count_expected}/{self._worker_tasks_count_starting}/{self._worker_tasks_count_running}/{self._worker_tasks_count_failed})"
+                )
+                last_state_log = Timestamp.now()
+
             if self._main_task_stop_future in done:
                 logger.info("stopping BACnetSource main task")
                 break
@@ -286,6 +303,7 @@ class BacnetSource(Source):
             logger.exception("Can't put BACnet result in queue!")
 
     async def _worker_task(self, object_group, worker_task_stop_future):
+        start_time = Timestamp.now()
         interval = object_group["interval"]
         device_address_str = object_group["device_address_str"]
         object_type = object_group["object_type"]
@@ -294,7 +312,7 @@ class BacnetSource(Source):
         ]
         chunk_size = object_group.get("chunk_size")
 
-        logger.info(
+        logger.debug(
             f"starting BACnetSource worker task for device {device_address_str}"
         )
 
@@ -306,6 +324,7 @@ class BacnetSource(Source):
         # wait for random time between 10 ms and 10.01s
         random_wait_time = random.random() * 10 + 0.01
         await asyncio.sleep(random_wait_time)
+        self._worker_tasks_count_starting += 1
 
         await self.event_loop.run_in_executor(
             None,
@@ -333,6 +352,7 @@ class BacnetSource(Source):
             logger.error(
                 "Missing device info for {}. Stopping worker task!", device_address_str
             )
+            self._worker_tasks_count_failed += 1
             return
 
         device_name = self._object_name_vendor_specific_mapping.get(
@@ -344,6 +364,7 @@ class BacnetSource(Source):
         )
 
         metrics = {}
+        missing_metrics = 0
 
         for object_instance in object_group["object_instances"]:
             metadata = {
@@ -366,6 +387,7 @@ class BacnetSource(Source):
                     object_instance,
                     device_address_str,
                 )
+                missing_metrics += 1
                 continue
 
             # Get vendor-specific-address from object cache
@@ -420,6 +442,13 @@ class BacnetSource(Source):
         if device_info:
             segmentationSupport = device_info.segmentationSupported
 
+        start_duration = Timestamp.now() - start_time
+
+        logger.info(
+            f"Started BACnetSource worker task for device {device_address_str}! Took {start_duration.s - random_wait_time:.2f} s (waited {random_wait_time:.2f} s), {missing_metrics} metrics have no object info"
+        )
+
+        self._worker_tasks_count_running += 1
         deadline = Timestamp.now()
         while True:
             self._bacnet_reader.request_values(
