@@ -249,7 +249,7 @@ class BacnetSource(Source):
 
                 self._result_queue.task_done()
 
-            if Timestamp.now() - last_state_log > Timedelta.from_string("30s"):
+            if Timestamp.now() - last_state_log > Timedelta.from_string("5min"):
                 logger.info(
                     f"Current worker count (expected/starting/running/failed): ({self._worker_tasks_count_expected}/{self._worker_tasks_count_starting}/{self._worker_tasks_count_running}/{self._worker_tasks_count_failed})"
                 )
