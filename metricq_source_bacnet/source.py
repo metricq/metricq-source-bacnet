@@ -332,6 +332,7 @@ class BacnetSource(Source):
                 self._bacnet_reader.request_device_properties,
                 device_address_str,
                 skip_when_cached=True,
+                request_timeout=Timedelta.from_s(30),
             ),
         )
         await self.event_loop.run_in_executor(
@@ -342,6 +343,7 @@ class BacnetSource(Source):
                 objects,
                 skip_when_cached=True,
                 chunk_size=chunk_size,
+                request_timeout=Timedelta.from_s(30),
             ),
         )
 
