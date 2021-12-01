@@ -25,7 +25,7 @@ from asyncio import Future, Task
 
 from metricq.exceptions import RPCError
 from string import Template
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Set
 
 from bacpypes.pdu import Address
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
@@ -120,7 +120,9 @@ class BacnetSource(Source):
 
         self._object_groups: List[Dict[str, Union[str, int]]] = []
         self._device_config: Dict[str, Dict] = {}
+        config_error = False
         for device_address_str, device_config in config["devices"].items():
+            object_instances_by_type: Dict[str, Set[int]] = {}
             object_group_device_config = {
                 "metric_id": device_config["metricId"],
                 "description": device_config.get("description", "$objectDescription"),
@@ -134,12 +136,26 @@ class BacnetSource(Source):
             object_group_device_config["device_address_str"] = device_address_str
 
             for object_config in device_config["objectGroups"]:
+                object_instances = unpack_range(object_config["objectInstance"])
+                object_type = object_config["objectType"]
+
                 object_group_config = {
-                    "object_type": object_config["objectType"],
-                    "object_instances": unpack_range(object_config["objectInstance"]),
+                    "object_type": object_type,
+                    "object_instances": object_instances,
                     "interval": object_config["interval"],
                 }
                 object_group_config.update(object_group_device_config)
+
+                if object_type in object_instances_by_type:
+                    diff_set = object_instances_by_type[object_type] & set(object_instances)
+                    if diff_set:
+                        logger.error(
+                            f"Duplicated objects ({object_type},{diff_set}) in config for device {device_address_str}!"
+                        )
+                        config_error = True
+                    object_instances_by_type[object_type].update(object_instances)
+                else:
+                    object_instances_by_type[object_type] = set(object_instances)
 
                 if "description" in object_config:
                     object_group_config["description"] = object_config["description"]
@@ -150,6 +166,9 @@ class BacnetSource(Source):
                     ]
 
                 self._object_groups.append(object_group_config)
+
+        if config_error:
+            raise ValueError("Config has errors! See previous log.")
 
         self._object_name_vendor_specific_mapping = config.get(
             "vendorSpecificMapping", {}
