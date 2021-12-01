@@ -22,6 +22,8 @@ import functools
 import random
 import threading
 from asyncio import Future, Task
+
+from metricq.exceptions import RPCError
 from string import Template
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -440,7 +442,12 @@ class BacnetSource(Source):
 
             metrics[metric_id] = metadata
 
-        await self.declare_metrics(metrics)
+        try:
+            await self.declare_metrics(metrics)
+        except RPCError:
+            logger.exception(f"Can't declare metadata for device {device_address_str}. Stopping worker task!")
+            self._worker_tasks_count_failed += 1
+            return
 
         segmentationSupport = "unknown"
         device_address = Address(device_address_str)
