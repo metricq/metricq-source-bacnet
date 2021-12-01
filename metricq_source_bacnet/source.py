@@ -268,7 +268,13 @@ class BacnetSource(Source):
 
         if self._worker_tasks:
             logger.info(f"Waiting for {len(self._worker_tasks)} worker tasks to finish")
-            await asyncio.wait(self._worker_tasks)
+            done, _ = await asyncio.wait(self._worker_tasks)
+            for t in done:
+                if not t.cancelled():
+                    try:
+                        t.result()
+                    except Exception:
+                        logger.exception("Worker task raised exception!")
             logger.info(f"Worker tasks finished!")
 
         try:
