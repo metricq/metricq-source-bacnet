@@ -28,9 +28,11 @@ from string import Template
 from typing import Dict, List, Optional, Tuple, Union, Set
 
 from bacpypes.pdu import Address
+from bacpypes.basetypes import EngineeringUnits
 from metricq import Source, Timedelta, Timestamp, get_logger, rpc_handler
 from metricq_source_bacnet.bacnet.application import BACnetMetricQReader
 from metricq_source_bacnet.bacnet.object_types import register_extended_object_types
+from metricq_source_bacnet.bacnet.constants import BACNET_TO_SI_UNITS
 
 logger = get_logger(__name__)
 
@@ -457,7 +459,13 @@ class BacnetSource(Source):
                     description, self._object_description_vendor_specific_substitutions
                 )
             if "units" in object_info:
-                metadata["unit"] = object_info["units"]
+                # convert BACnet unit to SI
+                unit = object_info["units"]
+                if unit_int := EngineeringUnits.enumerations.get(unit):
+                    if unit_int in BACNET_TO_SI_UNITS:
+                        unit = BACNET_TO_SI_UNITS.get(unit_int)
+
+                metadata["unit"] = unit
 
             metrics[metric_id] = metadata
 
