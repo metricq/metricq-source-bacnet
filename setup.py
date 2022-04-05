@@ -4,7 +4,7 @@ setup(
     name="metricq_source_bacnet",
     version="0.1",
     author="TU Dresden",
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     packages=find_packages(),
     scripts=[],
     entry_points="""
