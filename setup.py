@@ -16,7 +16,7 @@ setup(
         "click",
         "click-completion",
         "click_log",
-        "metricq[cli]@file:///Users/privat/Documents/GitHub/metricq/metricq-python",
+        "metricq[cli]@git+https://github.com/metricq/metricq-python.git@188-standardized-cli#egg=metricq[cli]",
         "bacpypes~=0.18.0",
     ],
     extras_require={"journallogger": ["systemd"]},
