@@ -24,6 +24,7 @@ import click as click
 
 import aiomonitor
 import click_log
+from metricq.cli import metricq_command
 from metricq.logging import get_logger
 
 from .source import BacnetSource
@@ -37,9 +38,7 @@ logger.handlers[0].formatter = logging.Formatter(
 )
 
 
-@click.command()
-@click.option("--server", default="amqp://localhost/")
-@click.option("--token", default="source-bacnet")
+@metricq_command(default_token="source-bacnet")
 @click.option("--monitor/--no-monitor", default=False)
 @click.option("--log-to-journal/--no-log-to-journal", default=False)
 @click.option("--disk-cache-filename", default="metricq-source-bacnet-disk-cache.json")

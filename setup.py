@@ -4,7 +4,7 @@ setup(
     name="metricq_source_bacnet",
     version="0.1",
     author="TU Dresden",
-    python_requires=">=3.6",
+    python_requires=">=3.10",
     packages=find_packages(),
     scripts=[],
     entry_points="""
@@ -16,7 +16,7 @@ setup(
         "click",
         "click-completion",
         "click_log",
-        "metricq~=3.0",
+        "metricq[cli]@git+https://github.com/metricq/metricq-python.git@188-standardized-cli#egg=metricq[cli]",
         "bacpypes~=0.18.0",
     ],
     extras_require={"journallogger": ["systemd"]},
